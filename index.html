@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ajax Transfer Radar</title>
+  <title>❌❌❌ Ajax Transfer Radar</title>
   <style>
     :root {
       --primary: #d0021b;
@@ -72,6 +72,22 @@
       border-radius: 8px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.08);
       border-left: 4px solid var(--primary);
+      position: relative;
+    }
+
+    .card.is-new {
+      border-left: 4px solid #2e7d32; /* Groene rand voor nieuwe items */
+    }
+
+    .badge-new {
+      background: #2e7d32;
+      color: white;
+      font-size: 0.65rem;
+      font-weight: bold;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 6px;
+      text-transform: uppercase;
     }
 
     .card a {
@@ -117,173 +133,229 @@
   <div class="container">
     <header>
       <h1>❌❌❌ Ajax Transfer Radar</h1>
-      <button class="btn-refresh" onclick="loadFeeds()">Verversen</button>
+      <button class="btn-refresh" onclick="loadFeeds(true)">Verversen</button>
     </header>
 
     <div id="feed">
-      <div class="loading">Nieuwste geruchten ophalen en vertalen...</div>
+      <div class="loading">❌❌❌ Geruchten ophalen en vertalen...</div>
     </div>
   </div>
 
   <script>
-    // Uitgebreide bronnenlijst (zonder algemene feeds)
     const FEEDS = [
-        { name: "Ajax Showtime", url: "https://www.ajaxshowtime.com/sitemap/news.xml", translate: false },
-        { name: "VoetbalPrimeur", url: "https://www.voetbalprimeur.nl/feed/news.xml?tag=ajax", translate: false },
-        { 
-          name: "Google News (NL)", 
-          url: "https://news.google.com/rss/search?q=Ajax+(transfer+OR+gerucht+OR+bod+OR+interesse+OR+aanvaller+OR+verdediger+OR+middenvelder+OR+keeper+OR+Cruijff)&hl=nl&gl=NL&ceid=NL:nl", 
-          translate: false 
-        },
-        { 
-          name: "Google News (UK/EN)", 
-          url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(transfer+OR+rumour+OR+target+OR+bid+OR+striker+OR+defender+OR+midfielder)&hl=en-US&gl=US&ceid=US:en", 
-          translate: true 
-        },
-        { 
-          name: "Google News (IT)", 
-          url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(calciomercato+OR+offerta+OR+interesse+OR+attaccante+OR+difensore)&hl=it&gl=IT&ceid=IT:it", 
-          translate: true 
-        },
-        { 
-          name: "Google News (ES)", 
-          url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(fichajes+OR+oferta+OR+traspaso+OR+delantero+OR+defensa)&hl=es&gl=ES&ceid=ES:es", 
-          translate: true 
-        },
-        { 
-          name: "Google News (FR)", 
-          url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(mercato+OR+offre+OR+transfert+OR+attaquant+OR+defenseur)&hl=fr&gl=FR&ceid=FR:fr", 
-          translate: true 
-        },
-        { 
-          name: "Google News (Zuid-Amerika)", 
-          url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(fichaje+OR+oferta+OR+contratacao+OR+delantero+OR+zaguero)&hl=es-419&gl=AR&ceid=AR:es-419", 
-          translate: true 
-        },
-        { name: "Reddit Ajax", url: "https://www.reddit.com/r/AjaxAmsterdam/new/.rss", translate: true }
+      // --- Binnenlandse Directe Ajax Bronnen ---
+      { name: "Ajax Showtime", url: "https://www.ajaxshowtime.com/sitemap/news.xml", translate: false },
+      { name: "Ajax1.nl", url: "https://www.ajax1.nl/feed/news.rss", translate: false },
+      { name: "VoetbalPrimeur", url: "https://www.voetbalprimeur.nl/feed/news.xml?tag=ajax", translate: false },
+      
+      // --- Algemene NL Feeds (Gefilterd op "Ajax") ---
+      { name: "De Telegraaf", url: "https://www.telegraaf.nl/rss/", translate: false, filterAjax: true },
+      { name: "FCUpdate", url: "https://www.fcupdate.nl/rss", translate: false, filterAjax: true },
+
+      // --- Google News NL (Uitgebreid op termen) ---
+      { 
+        name: "Google News (NL)", 
+        url: "https://news.google.com/rss/search?q=Ajax+(transfer+OR+gerucht+OR+bod+OR+interesse+OR+aanvaller+OR+verdediger+OR+middenvelder+OR+keeper+OR+Cruijff)&hl=nl&gl=NL&ceid=NL:nl", 
+        translate: false 
+      },
+      
+      // --- Buitenlandse Google News Feeds ---
+      { 
+        name: "Google News (UK/EN)", 
+        url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(transfer+OR+rumour+OR+target+OR+bid+OR+striker+OR+defender+OR+midfielder)&hl=en-US&gl=US&ceid=US:en", 
+        translate: true 
+      },
+      { 
+        name: "Google News (IT)", 
+        url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(calciomercato+OR+offerta+OR+interesse+OR+attaccante+OR+difensore)&hl=it&gl=IT&ceid=IT:it", 
+        translate: true 
+      },
+      { 
+        name: "Google News (ES)", 
+        url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(fichajes+OR+oferta+OR+traspaso+OR+delantero+OR+defensa)&hl=es&gl=ES&ceid=ES:es", 
+        translate: true 
+      },
+      { 
+        name: "Google News (FR)", 
+        url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(mercato+OR+offre+OR+transfert+OR+attaquant+OR+defenseur)&hl=fr&gl=FR&ceid=FR:fr", 
+        translate: true 
+      },
+      { 
+        name: "Google News (Zuid-Amerika)", 
+        url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(fichaje+OR+oferta+OR+contratacao+OR+delantero+OR+zaguero)&hl=es-419&gl=AR&ceid=AR:es-419", 
+        translate: true 
+      },
+      
+      // --- Community ---
+      { name: "Reddit Ajax", url: "https://www.reddit.com/r/AjaxAmsterdam/new/.rss", translate: true }
     ];
 
+    const REFRESH_INTERVAL_MINUTES = 5; // Elke 5 minuten verversen op achtergrond
+    const BASE_TITLE = "❌❌❌ Ajax Transfer Radar";
+    let newItemsCount = 0;
+
+    function getSeenLinks() {
+      const stored = localStorage.getItem('ajax_radar_seen');
+      return stored ? JSON.parse(stored) : [];
+    }
+
+    function saveSeenLinks(links) {
+      localStorage.setItem('ajax_radar_seen', JSON.stringify(links.slice(0, 100)));
+    }
+
     async function translateText(text) {
-        if (!text || text.trim() === "") return "";
+      if (!text || text.trim() === "") return "";
+      try {
+        const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=nl&dt=t&q=${encodeURIComponent(text)}`);
+        if (!res.ok) throw new Error("Netwerkfout");
+        const data = await res.json();
+        return data[0].map(item => item[0]).join('');
+      } catch (e) {
+        return text;
+      }
+    }
+
+    async function loadFeeds(isManual = false) {
+      const feedContainer = document.getElementById('feed');
+      if (isManual) {
+        feedContainer.innerHTML = '<div class="loading">❌❌❌ Geruchten ophalen en vertalen...</div>';
+      }
+      
+      let allItems = [];
+      let seenTitles = new Set(); 
+      const seenLinks = getSeenLinks();
+
+      for (const source of FEEDS) {
         try {
-            // Google Translate kan overbelast raken, we proberen het robuust te houden
-            const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=nl&dt=t&q=${encodeURIComponent(text)}`);
-            if (!res.ok) throw new Error("Netwerkfout");
-            const data = await res.json();
-            // Google Translate antwoord kan complex zijn, we pakken alles
-            return data[0].map(item => item[0]).join('');
-        } catch (e) {
-            console.error("Vertaalfout:", e);
-            return text; // Fallback op originele titel bij fout
-        }
-    }
-
-    async function loadFeeds() {
-        const feedContainer = document.getElementById('feed');
-        feedContainer.innerHTML = '<div class="loading">❌❌❌ Geruchten ophalen en snippets vertalen...</div>';
-        
-        let allItems = [];
-        let seenTitles = new Set(); 
-
-        for (const source of FEEDS) {
-            try {
-                // api.rss2json.com is essentieel voor CORS
-                const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(source.url)}`);
-                const data = await res.json();
-                
-                if (data.items) {
-                    for (let item of data.items.slice(0, 5)) { 
-                        let title = item.title.trim();
-                        let snippet = item.content || item.description || ""; // Google News en Reddit gebruiken 'description'
-
-                        // Verwijder HTML tags uit de snippet (soms zitten er images of links in)
-                        snippet = snippet.replace(/<[^>]*>?/gm, '').trim();
-
-                        // Pak alleen de eerste ~150 tekens als snippet als het te lang is
-                        if (snippet.length > 150) {
-                            snippet = snippet.substring(0, 147) + "...";
-                        }
-
-                        // Vertalen indien nodig (we vertalen de snippet ook!)
-                        if (source.translate) {
-                            title = await translateText(title);
-                            if (snippet) {
-                                snippet = await translateText(snippet);
-                            }
-                        }
-
-                        // Simpele ontdubbeling
-                        const titleKey = title.toLowerCase().substring(0, 30);
-                        if (!seenTitles.has(titleKey)) {
-                            seenTitles.add(titleKey);
-                            allItems.push({
-                                title: title,
-                                snippet: snippet,
-                                link: item.link,
-                                date: new Date(item.pubDate),
-                                source: source.name
-                            });
-                        }
-                    }
-                }
-            } catch (err) {
-                console.error("Fout bij ophalen van bron:", source.name);
-            }
-        }
-
-        allItems.sort((a, b) => b.date - a.date);
-        feedContainer.innerHTML = '';
-        
-        if (allItems.length === 0) {
-            feedContainer.innerHTML = '<div class="loading">Geen berichten kunnen laden. Probeer later opnieuw.</div>';
-            return;
-        }
-
-        allItems.forEach((item, index) => {
-            const card = document.createElement('div');
-            card.className = 'card';
+          const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(source.url)}`);
+          const data = await res.json();
+          
+          if (data.items) {
+            // Pak 10 items voor gefilterde bronnen, anders 5
+            const limit = source.filterAjax ? 10 : 5;
             
-            const timeString = isNaN(item.date) ? '' : item.date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            const dateString = isNaN(item.date) ? '' : item.date.toLocaleDateString([], {day: '2-digit', month:'2-digit'});
+            for (let item of data.items.slice(0, limit)) { 
+              let title = item.title.trim();
 
-            // Het ID is nodig voor de inklapbare snippet
-            const snippetId = `snippet-${index}`;
+              // Filter algemene bronnen op trefwoord 'Ajax'
+              if (source.filterAjax && !title.toLowerCase().includes('ajax')) {
+                continue;
+              }
 
-            card.innerHTML = `
-              <a href="${item.link}" target="_blank" rel="noopener">${item.title}</a>
-              <div class="meta">
-                <span class="tag">${item.source}</span>
-                <span>${dateString} ${timeString}</span>
-              </div>
-              
-              <!-- Snippet Sectie -->
-              ${item.snippet ? `
-                <button class="btn-snippet" onclick="toggleSnippet('${snippetId}')" style="background:none; border:none; color:var(--primary); padding:0; font-size:0.8rem; cursor:pointer; margin-top:8px;">
-                   [ Toon eerste zin ]
-                </button>
-                <div id="${snippetId}" class="snippet-content" style="display:none; margin-top:8px; font-size:0.9rem; color:var(--subtext); border-top:1px solid #eee; padding-top:8px;">
-                   ${item.snippet}
-                </div>
-              ` : ''}
-            `;
-            feedContainer.appendChild(card);
-        });
-    }
+              let snippet = item.content || item.description || ""; 
+              snippet = snippet.replace(/<[^>]*>?/gm, '').trim();
 
-    // Functie om de snippet te tonen/verbergen
-    function toggleSnippet(id) {
-        const snippet = document.getElementById(id);
-        const button = snippet.previousElementSibling;
-        if (snippet.style.display === "none") {
-            snippet.style.display = "block";
-            button.innerText = "[ Verberg zin ]";
-        } else {
-            snippet.style.display = "none";
-            button.innerText = "[ Toon eerste zin ]";
+              if (snippet.length > 150) {
+                snippet = snippet.substring(0, 147) + "...";
+              }
+
+              if (source.translate) {
+                title = await translateText(title);
+                if (snippet) snippet = await translateText(snippet);
+              }
+
+              const titleKey = title.toLowerCase().substring(0, 30);
+              if (!seenTitles.has(titleKey)) {
+                seenTitles.add(titleKey);
+                
+                const isNew = seenLinks.length > 0 && !seenLinks.includes(item.link);
+
+                allItems.push({
+                  title: title,
+                  snippet: snippet,
+                  link: item.link,
+                  date: new Date(item.pubDate),
+                  source: source.name,
+                  isNew: isNew
+                });
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Fout bij ophalen van bron:", source.name);
         }
+      }
+
+      allItems.sort((a, b) => b.date - a.date);
+      feedContainer.innerHTML = '';
+      
+      if (allItems.length === 0) {
+        feedContainer.innerHTML = '<div class="loading">Geen berichten kunnen laden. Probeer later opnieuw.</div>';
+        return;
+      }
+
+      const brandNewItems = allItems.filter(i => i.isNew);
+      if (brandNewItems.length > 0) {
+        newItemsCount += brandNewItems.length;
+        updateTabTitle();
+      }
+
+      const currentLinks = allItems.map(i => i.link);
+      saveSeenLinks([...new Set([...seenLinks, ...currentLinks])]);
+
+      allItems.forEach((item, index) => {
+        const card = document.createElement('div');
+        card.className = `card ${item.isNew ? 'is-new' : ''}`;
+        
+        const timeString = isNaN(item.date) ? '' : item.date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const dateString = isNaN(item.date) ? '' : item.date.toLocaleDateString([], {day: '2-digit', month:'2-digit'});
+        const snippetId = `snippet-${index}`;
+
+        card.innerHTML = `
+          <a href="${item.link}" target="_blank" rel="noopener">
+            ${item.title}
+            ${item.isNew ? '<span class="badge-new">Nieuw</span>' : ''}
+          </a>
+          <div class="meta">
+            <span class="tag">${item.source}</span>
+            <span>${dateString} ${timeString}</span>
+          </div>
+          
+          ${item.snippet ? `
+            <button class="btn-snippet" onclick="toggleSnippet('${snippetId}')" style="background:none; border:none; color:var(--primary); padding:0; font-size:0.8rem; cursor:pointer; margin-top:8px;">
+               [ Toon eerste zin ]
+            </button>
+            <div id="${snippetId}" class="snippet-content" style="display:none; margin-top:8px; font-size:0.9rem; color:var(--subtext); border-top:1px solid #eee; padding-top:8px;">
+               ${item.snippet}
+            </div>
+          ` : ''}
+        `;
+        feedContainer.appendChild(card);
+      });
     }
 
-    loadFeeds();
-</script>
+    function toggleSnippet(id) {
+      const snippet = document.getElementById(id);
+      const button = snippet.previousElementSibling;
+      if (snippet.style.display === "none") {
+        snippet.style.display = "block";
+        button.innerText = "[ Verberg zin ]";
+      } else {
+        snippet.style.display = "none";
+        button.innerText = "[ Toon eerste zin ]";
+      }
+    }
+
+    function updateTabTitle() {
+      if (newItemsCount > 0) {
+        document.title = `(${newItemsCount}) 🚨 Ajax Transfer Radar`;
+      } else {
+        document.title = BASE_TITLE;
+      }
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+        newItemsCount = 0;
+        updateTabTitle();
+      }
+    });
+
+    loadFeeds(true);
+
+    setInterval(() => {
+      loadFeeds(false);
+    }, REFRESH_INTERVAL_MINUTES * 60 * 1000);
+  </script>
 </body>
 </html>
