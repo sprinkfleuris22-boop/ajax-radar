@@ -126,132 +126,164 @@
   </div>
 
   <script>
-    // Uitgebreide bronnenlijst (Binnen- en buitenland)
-const FEEDS = [
-      // --- Binnenlandse Bronnen ---
-      { name: "Ajax Showtime", url: "https://www.ajaxshowtime.com/sitemap/news.xml", translate: false },
-      { name: "VoetbalPrimeur", url: "https://www.voetbalprimeur.nl/feed/news.xml?tag=ajax", translate: false },
-      
-      // --- Google News NL (Uitgebreid op termen) ---
-      { 
-        name: "Google News (NL)", 
-        url: "https://news.google.com/rss/search?q=Ajax+(transfer+OR+gerucht+OR+bod+OR+interesse+OR+aanvaller+OR+verdediger+OR+middenvelder+OR+keeper+OR+Cruijff)&hl=nl&gl=NL&ceid=NL:nl", 
-        translate: false 
-      },
-      
-      // --- Google News Buitenland (Uitgebreid & specifiek op Ajax/Amsterdam) ---
-      { 
-        name: "Google News (UK/EN)", 
-        url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(transfer+OR+rumour+OR+target+OR+bid+OR+striker+OR+defender+OR+midfielder)&hl=en-US&gl=US&ceid=US:en", 
-        translate: true 
-      },
-      { 
-        name: "Google News (IT)", 
-        url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(calciomercato+OR+offerta+OR+interesse+OR+attaccante+OR+difensore)&hl=it&gl=IT&ceid=IT:it", 
-        translate: true 
-      },
-      { 
-        name: "Google News (ES)", 
-        url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(fichajes+OR+oferta+OR+traspaso+OR+delantero+OR+defensa)&hl=es&gl=ES&ceid=ES:es", 
-        translate: true 
-      },
-      { 
-        name: "Google News (FR)", 
-        url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(mercato+OR+offre+OR+transfert+OR+attaquant+OR+defenseur)&hl=fr&gl=FR&ceid=FR:fr", 
-        translate: true 
-      },
-      { 
-        name: "Google News (Zuid-Amerika)", 
-        url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(fichaje+OR+oferta+OR+contratacao+OR+delantero+OR+zaguero)&hl=es-419&gl=AR&ceid=AR:es-419", 
-        translate: true 
-      },
-
-      // --- Specifieke Reddit Community (Alleen Ajax-specifiek) ---
-      { name: "Reddit Ajax", url: "https://www.reddit.com/r/AjaxAmsterdam/new/.rss", translate: true }
+    // Uitgebreide bronnenlijst (zonder algemene feeds)
+    const FEEDS = [
+        { name: "Ajax Showtime", url: "https://www.ajaxshowtime.com/sitemap/news.xml", translate: false },
+        { name: "VoetbalPrimeur", url: "https://www.voetbalprimeur.nl/feed/news.xml?tag=ajax", translate: false },
+        { 
+          name: "Google News (NL)", 
+          url: "https://news.google.com/rss/search?q=Ajax+(transfer+OR+gerucht+OR+bod+OR+interesse+OR+aanvaller+OR+verdediger+OR+middenvelder+OR+keeper+OR+Cruijff)&hl=nl&gl=NL&ceid=NL:nl", 
+          translate: false 
+        },
+        { 
+          name: "Google News (UK/EN)", 
+          url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(transfer+OR+rumour+OR+target+OR+bid+OR+striker+OR+defender+OR+midfielder)&hl=en-US&gl=US&ceid=US:en", 
+          translate: true 
+        },
+        { 
+          name: "Google News (IT)", 
+          url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(calciomercato+OR+offerta+OR+interesse+OR+attaccante+OR+difensore)&hl=it&gl=IT&ceid=IT:it", 
+          translate: true 
+        },
+        { 
+          name: "Google News (ES)", 
+          url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(fichajes+OR+oferta+OR+traspaso+OR+delantero+OR+defensa)&hl=es&gl=ES&ceid=ES:es", 
+          translate: true 
+        },
+        { 
+          name: "Google News (FR)", 
+          url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(mercato+OR+offre+OR+transfert+OR+attaquant+OR+defenseur)&hl=fr&gl=FR&ceid=FR:fr", 
+          translate: true 
+        },
+        { 
+          name: "Google News (Zuid-Amerika)", 
+          url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(fichaje+OR+oferta+OR+contratacao+OR+delantero+OR+zaguero)&hl=es-419&gl=AR&ceid=AR:es-419", 
+          translate: true 
+        },
+        { name: "Reddit Ajax", url: "https://www.reddit.com/r/AjaxAmsterdam/new/.rss", translate: true }
     ];
 
-    // Gratis Google Translate functie via open endpoint
     async function translateText(text) {
-      try {
-        const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=nl&dt=t&q=${encodeURIComponent(text)}`);
-        const data = await res.json();
-        return data[0][0][0];
-      } catch (e) {
-        return text; // Fallback op originele titel bij netwerkfout
-      }
+        if (!text || text.trim() === "") return "";
+        try {
+            // Google Translate kan overbelast raken, we proberen het robuust te houden
+            const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=nl&dt=t&q=${encodeURIComponent(text)}`);
+            if (!res.ok) throw new Error("Netwerkfout");
+            const data = await res.json();
+            // Google Translate antwoord kan complex zijn, we pakken alles
+            return data[0].map(item => item[0]).join('');
+        } catch (e) {
+            console.error("Vertaalfout:", e);
+            return text; // Fallback op originele titel bij fout
+        }
     }
 
     async function loadFeeds() {
-      const feedContainer = document.getElementById('feed');
-      feedContainer.innerHTML = '<div class="loading">Nieuwste geruchten ophalen en vertalen...</div>';
-      
-      let allItems = [];
-      let seenTitles = new Set(); // Om dubbele titels te voorkomen
-
-      for (const source of FEEDS) {
-        try {
-          // Gebruik rss2json om CORS-beperkingen en XML parsing op te lossen
-          const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(source.url)}`);
-          const data = await res.json();
-          
-          if (data.items) {
-            for (let item of data.items.slice(0, 5)) { // Pak max 5 nieuwste items per bron
-              let title = item.title.trim();
-
-              // Vertalen indien nodig
-              if (source.translate) {
-                title = await translateText(title);
-              }
-
-              // Simpele ontdubbeling op basis van de eerste 25 tekens
-              const titleKey = title.toLowerCase().substring(0, 25);
-              if (!seenTitles.has(titleKey)) {
-                seenTitles.add(titleKey);
-                allItems.push({
-                  title: title,
-                  link: item.link,
-                  date: new Date(item.pubDate),
-                  source: source.name
-                });
-              }
-            }
-          }
-        } catch (err) {
-          console.error("Fout bij ophalen van bron:", source.name);
-        }
-      }
-
-      // Sorteer op datum (nieuwste bovenaan)
-      allItems.sort((a, b) => b.date - a.date);
-
-      feedContainer.innerHTML = '';
-      
-      if (allItems.length === 0) {
-        feedContainer.innerHTML = '<div class="loading">Geen berichten kunnen laden. Probeer later opnieuw.</div>';
-        return;
-      }
-
-      // Render items naar het scherm
-      allItems.forEach(item => {
-        const card = document.createElement('div');
-        card.className = 'card';
+        const feedContainer = document.getElementById('feed');
+        feedContainer.innerHTML = '<div class="loading">❌❌❌ Geruchten ophalen en snippets vertalen...</div>';
         
-        const timeString = isNaN(item.date) ? '' : item.date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        const dateString = isNaN(item.date) ? '' : item.date.toLocaleDateString([], {day: '2-digit', month:'2-digit'});
+        let allItems = [];
+        let seenTitles = new Set(); 
 
-        card.innerHTML = `
-          <a href="${item.link}" target="_blank" rel="noopener">${item.title}</a>
-          <div class="meta">
-            <span class="tag">${item.source}</span>
-            <span>${dateString} ${timeString}</span>
-          </div>
-        `;
-        feedContainer.appendChild(card);
-      });
+        for (const source of FEEDS) {
+            try {
+                // api.rss2json.com is essentieel voor CORS
+                const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(source.url)}`);
+                const data = await res.json();
+                
+                if (data.items) {
+                    for (let item of data.items.slice(0, 5)) { 
+                        let title = item.title.trim();
+                        let snippet = item.content || item.description || ""; // Google News en Reddit gebruiken 'description'
+
+                        // Verwijder HTML tags uit de snippet (soms zitten er images of links in)
+                        snippet = snippet.replace(/<[^>]*>?/gm, '').trim();
+
+                        // Pak alleen de eerste ~150 tekens als snippet als het te lang is
+                        if (snippet.length > 150) {
+                            snippet = snippet.substring(0, 147) + "...";
+                        }
+
+                        // Vertalen indien nodig (we vertalen de snippet ook!)
+                        if (source.translate) {
+                            title = await translateText(title);
+                            if (snippet) {
+                                snippet = await translateText(snippet);
+                            }
+                        }
+
+                        // Simpele ontdubbeling
+                        const titleKey = title.toLowerCase().substring(0, 30);
+                        if (!seenTitles.has(titleKey)) {
+                            seenTitles.add(titleKey);
+                            allItems.push({
+                                title: title,
+                                snippet: snippet,
+                                link: item.link,
+                                date: new Date(item.pubDate),
+                                source: source.name
+                            });
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Fout bij ophalen van bron:", source.name);
+            }
+        }
+
+        allItems.sort((a, b) => b.date - a.date);
+        feedContainer.innerHTML = '';
+        
+        if (allItems.length === 0) {
+            feedContainer.innerHTML = '<div class="loading">Geen berichten kunnen laden. Probeer later opnieuw.</div>';
+            return;
+        }
+
+        allItems.forEach((item, index) => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            
+            const timeString = isNaN(item.date) ? '' : item.date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            const dateString = isNaN(item.date) ? '' : item.date.toLocaleDateString([], {day: '2-digit', month:'2-digit'});
+
+            // Het ID is nodig voor de inklapbare snippet
+            const snippetId = `snippet-${index}`;
+
+            card.innerHTML = `
+              <a href="${item.link}" target="_blank" rel="noopener">${item.title}</a>
+              <div class="meta">
+                <span class="tag">${item.source}</span>
+                <span>${dateString} ${timeString}</span>
+              </div>
+              
+              <!-- Snippet Sectie -->
+              ${item.snippet ? `
+                <button class="btn-snippet" onclick="toggleSnippet('${snippetId}')" style="background:none; border:none; color:var(--primary); padding:0; font-size:0.8rem; cursor:pointer; margin-top:8px;">
+                   [ Toon eerste zin ]
+                </button>
+                <div id="${snippetId}" class="snippet-content" style="display:none; margin-top:8px; font-size:0.9rem; color:var(--subtext); border-top:1px solid #eee; padding-top:8px;">
+                   ${item.snippet}
+                </div>
+              ` : ''}
+            `;
+            feedContainer.appendChild(card);
+        });
     }
 
-    // Start direct bij het openen van de pagina
+    // Functie om de snippet te tonen/verbergen
+    function toggleSnippet(id) {
+        const snippet = document.getElementById(id);
+        const button = snippet.previousElementSibling;
+        if (snippet.style.display === "none") {
+            snippet.style.display = "block";
+            button.innerText = "[ Verberg zin ]";
+        } else {
+            snippet.style.display = "none";
+            button.innerText = "[ Toon eerste zin ]";
+        }
+    }
+
     loadFeeds();
-  </script>
+</script>
 </body>
 </html>
