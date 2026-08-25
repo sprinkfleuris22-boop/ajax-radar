@@ -76,7 +76,7 @@
     }
 
     .card.is-new {
-      border-left: 4px solid #2e7d32; /* Groene rand voor nieuwe items */
+      border-left: 4px solid #2e7d32;
     }
 
     .badge-new {
@@ -143,23 +143,16 @@
 
   <script>
     const FEEDS = [
-      // --- Binnenlandse Directe Ajax Bronnen ---
       { name: "Ajax Showtime", url: "https://www.ajaxshowtime.com/sitemap/news.xml", translate: false },
       { name: "Ajax1.nl", url: "https://www.ajax1.nl/feed/news.rss", translate: false },
       { name: "VoetbalPrimeur", url: "https://www.voetbalprimeur.nl/feed/news.xml?tag=ajax", translate: false },
-      
-      // --- Algemene NL Feeds (Gefilterd op "Ajax") ---
       { name: "De Telegraaf", url: "https://www.telegraaf.nl/rss/", translate: false, filterAjax: true },
       { name: "FCUpdate", url: "https://www.fcupdate.nl/rss", translate: false, filterAjax: true },
-
-      // --- Google News NL (Uitgebreid op termen) ---
       { 
         name: "Google News (NL)", 
         url: "https://news.google.com/rss/search?q=Ajax+(transfer+OR+gerucht+OR+bod+OR+interesse+OR+aanvaller+OR+verdediger+OR+middenvelder+OR+keeper+OR+Cruijff)&hl=nl&gl=NL&ceid=NL:nl", 
         translate: false 
       },
-      
-      // --- Buitenlandse Google News Feeds ---
       { 
         name: "Google News (UK/EN)", 
         url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(transfer+OR+rumour+OR+target+OR+bid+OR+striker+OR+defender+OR+midfielder)&hl=en-US&gl=US&ceid=US:en", 
@@ -185,12 +178,10 @@
         url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(fichaje+OR+oferta+OR+contratacao+OR+delantero+OR+zaguero)&hl=es-419&gl=AR&ceid=AR:es-419", 
         translate: true 
       },
-      
-      // --- Community ---
       { name: "Reddit Ajax", url: "https://www.reddit.com/r/AjaxAmsterdam/new/.rss", translate: true }
     ];
 
-    const REFRESH_INTERVAL_MINUTES = 5; // Elke 5 minuten verversen op achtergrond
+    const REFRESH_INTERVAL_MINUTES = 5;
     const BASE_TITLE = "❌❌❌ Ajax Transfer Radar";
     let newItemsCount = 0;
 
@@ -227,17 +218,17 @@
 
       for (const source of FEEDS) {
         try {
-          const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(source.url)}`);
+          // Voeg een unieke timestamp toe aan de URL om te voorkomen dat rss2json oude gegevens uit zijn geheugen serveert
+          const cacheBusterUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(source.url)}&_t=${Date.now()}`;
+          const res = await fetch(cacheBusterUrl);
           const data = await res.json();
           
           if (data.items) {
-            // Pak 10 items voor gefilterde bronnen, anders 5
             const limit = source.filterAjax ? 10 : 5;
             
             for (let item of data.items.slice(0, limit)) { 
               let title = item.title.trim();
 
-              // Filter algemene bronnen op trefwoord 'Ajax'
               if (source.filterAjax && !title.toLowerCase().includes('ajax')) {
                 continue;
               }
@@ -254,6 +245,13 @@
                 if (snippet) snippet = await translateText(snippet);
               }
 
+              // Converteer datum string expliciet naar lokale browser datum
+              let pubDate = new Date(item.pubDate);
+              // Als het formaat een specifieke ISO-string mist, herstellen we de offset
+              if (typeof item.pubDate === 'string' && !item.pubDate.includes('Z') && !item.pubDate.includes('+')) {
+                pubDate = new Date(item.pubDate.replace(' ', 'T') + 'Z');
+              }
+
               const titleKey = title.toLowerCase().substring(0, 30);
               if (!seenTitles.has(titleKey)) {
                 seenTitles.add(titleKey);
@@ -264,7 +262,7 @@
                   title: title,
                   snippet: snippet,
                   link: item.link,
-                  date: new Date(item.pubDate),
+                  date: pubDate,
                   source: source.name,
                   isNew: isNew
                 });
@@ -297,8 +295,9 @@
         const card = document.createElement('div');
         card.className = `card ${item.isNew ? 'is-new' : ''}`;
         
-        const timeString = isNaN(item.date) ? '' : item.date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        const dateString = isNaN(item.date) ? '' : item.date.toLocaleDateString([], {day: '2-digit', month:'2-digit'});
+        // Formatteer naar de lokale tijd van de gebruiker (NL zomertijd / 24u)
+        const timeString = isNaN(item.date) ? '' : item.date.toLocaleTimeString('nl-NL', {hour: '2-digit', minute:'2-digit'});
+        const dateString = isNaN(item.date) ? '' : item.date.toLocaleDateString('nl-NL', {day: '2-digit', month:'2-digit'});
         const snippetId = `snippet-${index}`;
 
         card.innerHTML = `
