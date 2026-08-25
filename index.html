@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>❌❌❌ Ajax Transfer Radar (v1.5)</title>
+  <title>❌❌❌ Ajax Transfer Radar (v1.6)</title>
   <style>
     :root {
       --primary: #d0021b;
@@ -146,7 +146,7 @@
     <header>
       <div class="header-title">
         <h1>❌❌❌ Ajax Transfer Radar</h1>
-        <span class="version-tag">Versie 1.5 • Live Feed Engine</span>
+        <span class="version-tag">Versie 1.6 • Hybrid Engine</span>
       </div>
       <button class="btn-refresh" onclick="loadFeeds(true)">Verversen</button>
     </header>
@@ -157,9 +157,6 @@
   </div>
 
   <script>
-    const APP_VERSION = "1.5";
-    console.log(`Ajax Transfer Radar gestart op versie ${APP_VERSION}`);
-
     const FEEDS = [
       { name: "Ajax Showtime", url: "https://www.ajaxshowtime.com/sitemap/news.xml", translate: false },
       { name: "Ajax1.nl", url: "https://www.ajax1.nl/feed/news.rss", translate: false },
@@ -224,21 +221,45 @@
       }
     }
 
-    // Gebruik corsproxy.io voor directe en snelle XML doorvoer
-    async function fetchRawXml(feedUrl) {
-      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(feedUrl)}`;
-      const res = await fetch(proxyUrl);
-      if (!res.ok) throw new Error(`HTTP fout ${res.status}`);
-      const text = await res.text();
-      
+    // Robuuste fetch-functie die rss2json gebruikt en fallback naar allorigins als het misgaat
+    async function fetchFeedItems(source) {
+      try {
+        const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(source.url)}`;
+        const res = await fetch(apiUrl);
+        const data = await res.json();
+        
+        if (data.status === 'ok' && data.items) {
+          return data.items.map(item => ({
+            title: item.title,
+            link: item.link,
+            pubDate: item.pubDate,
+            description: item.description || item.content || ""
+          }));
+        }
+      } catch (e) {
+        console.warn(`Primary API mislukt voor ${source.name}, probeer fallback...`);
+      }
+
+      // Fallback via AllOrigins
+      const fallbackUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(source.url)}`;
+      const res = await fetch(fallbackUrl);
+      const data = await res.json();
       const parser = new DOMParser();
-      return parser.parseFromString(text, "text/xml");
+      const xmlDoc = parser.parseFromString(data.contents, "text/xml");
+      const xmlItems = Array.from(xmlDoc.querySelectorAll("item, entry"));
+
+      return xmlItems.map(item => ({
+        title: item.querySelector("title")?.textContent || "",
+        link: item.querySelector("link")?.textContent || item.querySelector("link")?.getAttribute("href") || "",
+        pubDate: item.querySelector("pubDate, updated, date")?.textContent || "",
+        description: item.querySelector("description, summary, content")?.textContent || ""
+      }));
     }
 
     async function loadFeeds(isManual = false) {
       const feedContainer = document.getElementById('feed');
       if (isManual) {
-        feedContainer.innerHTML = '<div class="loading">❌❌❌ Live geruchten ophalen en vertalen (v1.5)...</div>';
+        feedContainer.innerHTML = '<div class="loading">❌❌❌ Live geruchten ophalen en vertalen (v1.6)...</div>';
       }
       
       let allItems = [];
@@ -247,18 +268,16 @@
 
       for (const source of FEEDS) {
         try {
-          const xmlDoc = await fetchRawXml(source.url);
-          let items = Array.from(xmlDoc.querySelectorAll("item, entry, url"));
-          
+          const items = await fetchFeedItems(source);
           const limit = source.filterAjax ? 10 : 5;
           
           for (let item of items.slice(0, limit)) {
-            let title = item.querySelector("title")?.textContent?.trim() || "";
-            let link = item.querySelector("link")?.textContent || item.querySelector("link")?.getAttribute("href") || "";
-            let pubDateRaw = item.querySelector("pubDate, updated, lastmod, date, dc\\:date")?.textContent || "";
-            let description = item.querySelector("description, summary, content")?.textContent || "";
+            let title = (item.title || "").trim();
+            let link = item.link || "";
+            let pubDateRaw = item.pubDate || "";
+            let description = item.description || "";
 
-            if (!title && !link) continue;
+            if (!title || !link) continue;
 
             if (source.filterAjax && !title.toLowerCase().includes('ajax')) {
               continue;
@@ -274,7 +293,11 @@
               if (snippet) snippet = await translateText(snippet);
             }
 
+            // Datum parsen en corrigeren
             let parsedDate = pubDateRaw ? new Date(pubDateRaw) : new Date();
+            if (isNaN(parsedDate.getTime())) {
+              parsedDate = new Date();
+            }
 
             const titleKey = title.toLowerCase().substring(0, 30);
             if (!seenTitles.has(titleKey)) {
@@ -293,7 +316,7 @@
             }
           }
         } catch (err) {
-          console.error(`Fout bij ophalen van bron (${source.name}):`, err);
+          console.error(`Fout bij laden van bron (${source.name}):`, err);
         }
       }
 
