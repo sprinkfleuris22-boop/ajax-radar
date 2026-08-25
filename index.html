@@ -127,13 +127,46 @@
 
   <script>
     // Uitgebreide bronnenlijst (Binnen- en buitenland)
-    const FEEDS = [
+const FEEDS = [
+      // --- Binnenlandse Bronnen ---
       { name: "Ajax Showtime", url: "https://www.ajaxshowtime.com/sitemap/news.xml", translate: false },
       { name: "VoetbalPrimeur", url: "https://www.voetbalprimeur.nl/feed/news.xml?tag=ajax", translate: false },
-      { name: "Google News (NL)", url: "https://news.google.com/rss/search?q=Ajax+transfer+OR+geruchten&hl=nl&gl=NL&ceid=NL:nl", translate: false },
-      { name: "Google News (EN)", url: "https://news.google.com/rss/search?q=Ajax+Amsterdam+transfer&hl=en-US&gl=US&ceid=US:en", translate: true },
-      { name: "Google News (IT)", url: "https://news.google.com/rss/search?q=Ajax+calciomercato&hl=it&gl=IT&ceid=IT:it", translate: true },
-      { name: "Google News (ES)", url: "https://news.google.com/rss/search?q=Ajax+fichajes&hl=es&gl=ES&ceid=ES:es", translate: true },
+      
+      // --- Google News NL (Uitgebreid op termen) ---
+      { 
+        name: "Google News (NL)", 
+        url: "https://news.google.com/rss/search?q=Ajax+(transfer+OR+gerucht+OR+bod+OR+interesse+OR+aanvaller+OR+verdediger+OR+middenvelder+OR+keeper+OR+Cruijff)&hl=nl&gl=NL&ceid=NL:nl", 
+        translate: false 
+      },
+      
+      // --- Google News Buitenland (Uitgebreid & specifiek op Ajax/Amsterdam) ---
+      { 
+        name: "Google News (UK/EN)", 
+        url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(transfer+OR+rumour+OR+target+OR+bid+OR+striker+OR+defender+OR+midfielder)&hl=en-US&gl=US&ceid=US:en", 
+        translate: true 
+      },
+      { 
+        name: "Google News (IT)", 
+        url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(calciomercato+OR+offerta+OR+interesse+OR+attaccante+OR+difensore)&hl=it&gl=IT&ceid=IT:it", 
+        translate: true 
+      },
+      { 
+        name: "Google News (ES)", 
+        url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(fichajes+OR+oferta+OR+traspaso+OR+delantero+OR+defensa)&hl=es&gl=ES&ceid=ES:es", 
+        translate: true 
+      },
+      { 
+        name: "Google News (FR)", 
+        url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(mercato+OR+offre+OR+transfert+OR+attaquant+OR+defenseur)&hl=fr&gl=FR&ceid=FR:fr", 
+        translate: true 
+      },
+      { 
+        name: "Google News (Zuid-Amerika)", 
+        url: "https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(fichaje+OR+oferta+OR+contratacao+OR+delantero+OR+zaguero)&hl=es-419&gl=AR&ceid=AR:es-419", 
+        translate: true 
+      },
+
+      // --- Specifieke Reddit Community (Alleen Ajax-specifiek) ---
       { name: "Reddit Ajax", url: "https://www.reddit.com/r/AjaxAmsterdam/new/.rss", translate: true }
     ];
 
