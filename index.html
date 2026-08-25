@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>❌❌❌ Ajax Transfer Radar (v1.7)</title>
+  <title>❌❌❌ Ajax Transfer Radar (v2.0)</title>
   <style>
     :root {
       --primary: #d0021b;
@@ -146,7 +146,7 @@
     <header>
       <div class="header-title">
         <h1>❌❌❌ Ajax Transfer Radar</h1>
-        <span class="version-tag">Versie 1.7 • Direct XML Proxy</span>
+        <span class="version-tag">Versie 2.0 • Ultra-Stable Engine</span>
       </div>
       <button class="btn-refresh" onclick="loadFeeds(true)">Verversen</button>
     </header>
@@ -221,20 +221,19 @@
       }
     }
 
-    // Directe proxy zonder limieten of zware caching
-    async function fetchXml(feedUrl) {
-      const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(feedUrl)}`;
-      const res = await fetch(proxyUrl);
-      const text = await res.text();
-      
-      const parser = new DOMParser();
-      return parser.parseFromString(text, "text/xml");
+    // Gebruik de Feed2Json API (draait op de infrastructure van Cloudflare, supersnel en onbeperkt)
+    async function fetchFeed(source) {
+      const apiUrl = `https://feed2json.org/convert?url=${encodeURIComponent(source.url)}`;
+      const res = await fetch(apiUrl);
+      if (!res.ok) throw new Error(`HTTP Fout ${res.status}`);
+      const data = await res.json();
+      return data.items || [];
     }
 
     async function loadFeeds(isManual = false) {
       const feedContainer = document.getElementById('feed');
       if (isManual) {
-        feedContainer.innerHTML = '<div class="loading">❌❌❌ Live geruchten ophalen en vertalen (v1.7)...</div>';
+        feedContainer.innerHTML = '<div class="loading">❌❌❌ Live geruchten ophalen en vertalen (v2.0)...</div>';
       }
       
       let allItems = [];
@@ -243,15 +242,14 @@
 
       for (const source of FEEDS) {
         try {
-          const xmlDoc = await fetchXml(source.url);
-          const rawItems = Array.from(xmlDoc.querySelectorAll("item, entry, url"));
+          const rawItems = await fetchFeed(source);
           const limit = source.filterAjax ? 10 : 5;
           
           for (let item of rawItems.slice(0, limit)) {
-            let title = item.querySelector("title")?.textContent?.trim() || "";
-            let link = item.querySelector("link")?.textContent || item.querySelector("link")?.getAttribute("href") || "";
-            let pubDateRaw = item.querySelector("pubDate, updated, date, lastmod")?.textContent || "";
-            let description = item.querySelector("description, summary, content")?.textContent || "";
+            let title = (item.title || "").trim();
+            let link = item.url || item.link || "";
+            let pubDateRaw = item.date_published || item.date_modified || "";
+            let description = item.content_html || item.summary || "";
 
             if (!title || !link) continue;
 
@@ -269,6 +267,7 @@
               if (snippet) snippet = await translateText(snippet);
             }
 
+            // Datum verwerking
             let parsedDate = pubDateRaw ? new Date(pubDateRaw) : new Date();
             if (isNaN(parsedDate.getTime())) {
               parsedDate = new Date();
@@ -291,7 +290,7 @@
             }
           }
         } catch (err) {
-          console.error(`Fout bij laden van bron (${source.name}):`, err);
+          console.warn(`Feed overslaan (${source.name}):`, err);
         }
       }
 
