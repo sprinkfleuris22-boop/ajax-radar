@@ -137,7 +137,7 @@
     </header>
 
     <div id="feed">
-      <div class="loading">❌❌❌ Geruchten ophalen en vertalen...</div>
+      <div class="loading">❌❌❌ Live geruchten ophalen en vertalen...</div>
     </div>
   </div>
 
@@ -206,10 +206,20 @@
       }
     }
 
+    // Haal originele XML op via allorigins.win
+    async function fetchRawXml(feedUrl) {
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(feedUrl)}&_t=${Date.now()}`;
+      const res = await fetch(proxyUrl);
+      const data = await res.json();
+      
+      const parser = new DOMParser();
+      return parser.parseFromString(data.contents, "text/xml");
+    }
+
     async function loadFeeds(isManual = false) {
       const feedContainer = document.getElementById('feed');
       if (isManual) {
-        feedContainer.innerHTML = '<div class="loading">❌❌❌ Geruchten ophalen en vertalen...</div>';
+        feedContainer.innerHTML = '<div class="loading">❌❌❌ Live geruchten ophalen en vertalen...</div>';
       }
       
       let allItems = [];
@@ -218,55 +228,52 @@
 
       for (const source of FEEDS) {
         try {
-          // Voeg een unieke timestamp toe aan de URL om te voorkomen dat rss2json oude gegevens uit zijn geheugen serveert
-          const cacheBusterUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(source.url)}&_t=${Date.now()}`;
-          const res = await fetch(cacheBusterUrl);
-          const data = await res.json();
+          const xmlDoc = await fetchRawXml(source.url);
+          // Ondersteun zowel RSS <item> als Atom/Sitemap <entry> / <url>
+          let items = Array.from(xmlDoc.querySelectorAll("item, entry, url"));
           
-          if (data.items) {
-            const limit = source.filterAjax ? 10 : 5;
-            
-            for (let item of data.items.slice(0, limit)) { 
-              let title = item.title.trim();
+          const limit = source.filterAjax ? 10 : 5;
+          
+          for (let item of items.slice(0, limit)) {
+            let title = item.querySelector("title")?.textContent?.trim() || "";
+            let link = item.querySelector("link")?.textContent || item.querySelector("link")?.getAttribute("href") || "";
+            let pubDateRaw = item.querySelector("pubDate, updated, lastmod, date")?.textContent || "";
+            let description = item.querySelector("description, summary, content")?.textContent || "";
 
-              if (source.filterAjax && !title.toLowerCase().includes('ajax')) {
-                continue;
-              }
+            if (!title && !link) continue;
 
-              let snippet = item.content || item.description || ""; 
-              snippet = snippet.replace(/<[^>]*>?/gm, '').trim();
+            // Filter algemene bronnen op trefwoord 'Ajax'
+            if (source.filterAjax && !title.toLowerCase().includes('ajax')) {
+              continue;
+            }
 
-              if (snippet.length > 150) {
-                snippet = snippet.substring(0, 147) + "...";
-              }
+            let snippet = description.replace(/<[^>]*>?/gm, '').trim();
+            if (snippet.length > 150) {
+              snippet = snippet.substring(0, 147) + "...";
+            }
 
-              if (source.translate) {
-                title = await translateText(title);
-                if (snippet) snippet = await translateText(snippet);
-              }
+            if (source.translate) {
+              title = await translateText(title);
+              if (snippet) snippet = await translateText(snippet);
+            }
 
-              // Converteer datum string expliciet naar lokale browser datum
-              let pubDate = new Date(item.pubDate);
-              // Als het formaat een specifieke ISO-string mist, herstellen we de offset
-              if (typeof item.pubDate === 'string' && !item.pubDate.includes('Z') && !item.pubDate.includes('+')) {
-                pubDate = new Date(item.pubDate.replace(' ', 'T') + 'Z');
-              }
+            // Converteer het originele datumformaat naar een correct Date object
+            let parsedDate = pubDateRaw ? new Date(pubDateRaw) : new Date();
 
-              const titleKey = title.toLowerCase().substring(0, 30);
-              if (!seenTitles.has(titleKey)) {
-                seenTitles.add(titleKey);
-                
-                const isNew = seenLinks.length > 0 && !seenLinks.includes(item.link);
+            const titleKey = title.toLowerCase().substring(0, 30);
+            if (!seenTitles.has(titleKey)) {
+              seenTitles.add(titleKey);
+              
+              const isNew = seenLinks.length > 0 && !seenLinks.includes(link);
 
-                allItems.push({
-                  title: title,
-                  snippet: snippet,
-                  link: item.link,
-                  date: pubDate,
-                  source: source.name,
-                  isNew: isNew
-                });
-              }
+              allItems.push({
+                title: title,
+                snippet: snippet,
+                link: link,
+                date: parsedDate,
+                source: source.name,
+                isNew: isNew
+              });
             }
           }
         } catch (err) {
@@ -295,7 +302,7 @@
         const card = document.createElement('div');
         card.className = `card ${item.isNew ? 'is-new' : ''}`;
         
-        // Formatteer naar de lokale tijd van de gebruiker (NL zomertijd / 24u)
+        // Converteer naar exacte Nederlandse browsertijd
         const timeString = isNaN(item.date) ? '' : item.date.toLocaleTimeString('nl-NL', {hour: '2-digit', minute:'2-digit'});
         const dateString = isNaN(item.date) ? '' : item.date.toLocaleDateString('nl-NL', {day: '2-digit', month:'2-digit'});
         const snippetId = `snippet-${index}`;
