@@ -1,0 +1,696 @@
+
+                        <!DOCTYPE html>
+                        <html lang="en">
+                        <head>
+                            <meta charset="UTF-8">
+                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+							<style>
+								body {
+									background-color: white; /* Ensure the iframe has a white background */
+								}
+
+								
+							</style>
+                        </head>
+                        <body>
+                            <!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>⚡ Ajax Transfer Radar</title>
+<link id="favicon" rel="icon" href="data:," />
+<style>
+  :root{
+    --bg:#0b0d0f;
+    --bg-glow: radial-gradient(600px 300px at 50% -50px, rgba(208,2,27,.25), transparent 70%);
+    --card:#15181c;
+    --card-hover:#1b1f24;
+    --border:#262a30;
+    --accent:#d0021b;
+    --accent-soft: rgba(208,2,27,.15);
+    --text:#f1f2f4;
+    --muted:#8b929b;
+    --green:#2ecc71;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg) var(--bg-glow) no-repeat;
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:24px 16px 80px;}
+
+  /* ---------- HEADER ---------- */
+  header.topbar{text-align:center;padding:20px 0 10px;position:relative;}
+  header.topbar h1{
+    font-size:28px;margin:0;font-weight:800;letter-spacing:-.5px;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+  }
+  .version-tag{
+    font-size:11px;font-weight:700;color:var(--accent);
+    border:1px solid var(--accent);border-radius:20px;padding:2px 8px;
+    vertical-align:middle;
+  }
+  .live-pulse{
+    display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);
+    margin-top:6px;justify-content:center;
+  }
+  .live-dot{
+    width:8px;height:8px;border-radius:50%;background:var(--green);
+    animation:pulseDot 2s infinite;
+  }
+  .subtitle{color:var(--muted);font-size:13px;margin-top:4px;}
+
+  /* ---------- CONTROLS ---------- */
+  .controls{
+    display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;
+    margin:22px 0 14px;
+  }
+  .search-box{
+    flex:1;min-width:180px;background:var(--card);border:1px solid var(--border);
+    border-radius:12px;padding:10px 14px;color:var(--text);font-size:14px;
+    transition:border-color .2s, box-shadow .2s;
+  }
+  .search-box:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+  .refresh-btn{
+    display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);
+    color:var(--text);border-radius:12px;padding:10px 16px;font-size:14px;cursor:pointer;
+    transition:background .2s, transform .1s;white-space:nowrap;
+  }
+  .refresh-btn:hover{background:var(--card-hover);}
+  .refresh-btn:active{transform:scale(.97);}
+  .refresh-btn.loading svg{animation:spin .9s linear infinite;}
+  .refresh-btn:disabled{opacity:.6;cursor:default;}
+  .meta-row{
+    display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin-bottom:16px;
+    flex-wrap:wrap;gap:6px;
+  }
+  .meta-row b{color:var(--text);}
+
+  /* ---------- SOURCES PANEL ---------- */
+  details.sources-panel{
+    background:var(--card);border:1px solid var(--border);border-radius:12px;
+    padding:10px 14px;margin-bottom:20px;font-size:13px;
+  }
+  details.sources-panel summary{cursor:pointer;color:var(--muted);font-weight:600;outline:none;}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+  .chip{
+    display:flex;align-items:center;gap:6px;border:1px solid var(--border);
+    border-radius:20px;padding:6px 10px;cursor:pointer;user-select:none;
+    background:#0f1114;transition:opacity .2s, border-color .2s;
+  }
+  .chip.disabled{opacity:.35;}
+  .chip .dot{width:8px;height:8px;border-radius:50%;flex:none;}
+  .chip .status{width:6px;height:6px;border-radius:50%;flex:none;margin-left:2px;}
+  .status.ok{background:var(--green);}
+  .status.error{background:#e74c3c;}
+  .status.pending{background:#f1c40f;animation:pulseDot 1.5s infinite;}
+
+  /* ---------- DAY GROUPS ---------- */
+  .day-heading{
+    color:var(--muted);font-size:13px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.5px;margin:26px 0 10px;padding-left:2px;
+  }
+
+  /* ---------- CARDS ---------- */
+  .card{
+    background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+    padding:16px 18px;margin-bottom:12px;position:relative;overflow:hidden;
+    transition:transform .15s, box-shadow .15s, background .15s;
+  }
+  .card:hover{background:var(--card-hover);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.35);}
+  .card.is-new{border-color:rgba(208,2,27,.5);}
+  .card.is-new::before{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent);
+  }
+  .card.enter{animation:fadeInUp .5s ease both;}
+
+  .card-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+  .source-badge{
+    font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;
+    border:1px solid currentColor;
+  }
+  .new-badge{
+    font-size:10px;font-weight:800;letter-spacing:.5px;color:#fff;background:var(--accent);
+    padding:2px 8px;border-radius:20px;animation:badgePop .4s ease;
+  }
+  .time{font-size:12px;color:var(--muted);margin-left:auto;}
+
+  .card h3{margin:0 0 8px;font-size:16px;line-height:1.35;font-weight:700;}
+  .card h3 a{color:var(--text);text-decoration:none;}
+  .card h3 a:hover{color:var(--accent);text-decoration:underline;}
+  .source-hint{color:var(--muted);font-weight:500;font-size:13px;}
+
+  .snippet-toggle{
+    background:none;border:none;color:var(--accent);font-size:12.5px;font-weight:600;
+    cursor:pointer;padding:0;margin-top:2px;
+  }
+  .snippet{
+    max-height:0;overflow:hidden;transition:max-height .35s ease, opacity .35s ease;
+    opacity:0;color:var(--muted);font-size:13.5px;line-height:1.5;margin-top:8px;
+  }
+  .snippet.open{max-height:300px;opacity:1;}
+
+  .card-footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px;}
+  .read-link{color:var(--muted);font-size:12.5px;text-decoration:none;}
+  .read-link:hover{color:var(--accent);}
+
+  /* ---------- SKELETON ---------- */
+  .skeleton{
+    height:92px;border-radius:var(--radius);margin-bottom:12px;
+    background:linear-gradient(90deg, var(--card) 25%, var(--card-hover) 37%, var(--card) 63%);
+    background-size:400px 100%;animation:shimmer 1.4s infinite linear;
+  }
+
+  /* ---------- EMPTY / ERROR ---------- */
+  .empty-state{
+    text-align:center;color:var(--muted);padding:60px 20px;font-size:14px;
+  }
+
+  footer{text-align:center;color:var(--muted);font-size:12px;margin-top:40px;}
+  footer a{color:var(--muted);}
+
+  @keyframes fadeInUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+  @keyframes pulseDot{
+    0%{box-shadow:0 0 0 0 rgba(46,204,113,.55);}
+    70%{box-shadow:0 0 0 7px rgba(46,204,113,0);}
+    100%{box-shadow:0 0 0 0 rgba(46,204,113,0);}
+  }
+  @keyframes badgePop{0%{transform:scale(0);}60%{transform:scale(1.25);}100%{transform:scale(1);}}
+  @keyframes shimmer{0%{background-position:-400px 0;}100%{background-position:400px 0;}}
+  @keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="topbar">
+    <h1>⚡ Ajax Transfer Radar <span class="version-tag">v1.0</span></h1>
+    <div class="live-pulse"><span class="live-dot"></span> LIVE — automatisch elke 5 minuten</div>
+    <div class="subtitle">Alle Ajax-transfergeruchten en nieuws op één rij</div>
+  </header>
+
+  <div class="controls">
+    <input id="search" class="search-box" type="text" placeholder="Zoek op speler, club, trefwoord…" />
+    <button id="refreshBtn" class="refresh-btn">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M21 12a9 9 0 1 1-2.6-6.36" stroke-linecap="round"/>
+        <path d="M21 3v6h-6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Vernieuw nu
+    </button>
+  </div>
+
+  <div class="meta-row">
+    <span>Laatste update: <b id="lastUpdate">–</b></span>
+    <span>Volgende update over <b id="countdown">–</b></span>
+  </div>
+
+  
+
+  <main id="feedList"></main>
+  <div id="emptyState" class="empty-state" style="display:none;"></div>
+
+  <footer>
+    Gemaakt voor persoonlijk gebruik · geen affiliatie met AFC Ajax ·
+    data via publieke RSS-feeds &amp; Google News
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============================================================
+     CONFIG
+  ============================================================ */
+  const SOURCES = [
+    { id:"ajaxshowtime", name:"Ajax Showtime", url:"https://www.ajaxshowtime.com/sitemap/news.xml", filterAjax:false, color:"#ff4d4d" },
+    { id:"ajax1", name:"Ajax1.nl", url:"https://www.ajax1.nl/feed/news.rss", filterAjax:false, color:"#ff9f43" },
+    { id:"voetbalprimeur", name:"VoetbalPrimeur", url:"https://www.voetbalprimeur.nl/feed/news.xml?tag=ajax", filterAjax:false, color:"#1dd1a1" },
+    { id:"telegraaf", name:"De Telegraaf", url:"https://www.telegraaf.nl/rss/", filterAjax:true, color:"#54a0ff" },
+    { id:"fcupdate", name:"FCUpdate", url:"https://www.fcupdate.nl/rss", filterAjax:true, color:"#8b78e6" },
+    { id:"gnews_nl", name:"Google News (NL)", url:"https://news.google.com/rss/search?q=Ajax+(transfer+OR+gerucht+OR+bod+OR+interesse+OR+aanvaller+OR+verdediger+OR+middenvelder+OR+keeper+OR+Cruijff)&hl=nl&gl=NL&ceid=NL:nl", filterAjax:false, splitSource:true, color:"#00d2d3" },
+    { id:"gnews_en", name:"Google News (EN)", url:"https://news.google.com/rss/search?q=(%22Ajax%22+OR+%22Ajax+Amsterdam%22)+(transfer+OR+rumour+OR+target+OR+bid+OR+striker+OR+defender+OR+midfielder)&hl=en-US&gl=US&ceid=US:en", filterAjax:false, splitSource:true, color:"#c8d6e5" },
+    { id:"reddit", name:"Reddit r/AjaxAmsterdam", url:"https://www.reddit.com/r/AjaxAmsterdam/new/.rss", filterAjax:false, color:"#ff6348" }
+  ];
+
+  const PROXIES = [
+    u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
+    u => "https://corsproxy.io/?url=" + encodeURIComponent(u),
+    u => "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(u)
+  ];
+
+  const REFRESH_SECONDS = 300; // 5 minuten
+  const NEW_WINDOW_MS = 45 * 60 * 1000; // hoe lang een item als "NIEUW" blijft tonen
+  const LS_SEEN = "atr_seen_v1";
+  const LS_INIT = "atr_init_v1";
+  const LS_UNREAD = "atr_unread_v1";
+  const LS_SOURCES = "atr_sources_v1";
+
+  /* ============================================================
+     STATE
+  ============================================================ */
+  let allItems = [];              // laatst opgehaalde items, alle bronnen
+  let prevRenderedIds = new Set(); // welke ids in vorige render zaten (voor enter-animatie)
+  let secondsLeft = REFRESH_SECONDS;
+  let isRefreshing = false;
+  let searchTerm = "";
+
+  const seenMap = loadJSON(LS_SEEN, {});
+  const sourceEnabled = loadJSON(LS_SOURCES, Object.fromEntries(SOURCES.map(s=>[s.id, true])));
+  let unreadCount = parseInt(localStorage.getItem(LS_UNREAD) || "0", 10) || 0;
+
+  /* ============================================================
+     HELPERS
+  ============================================================ */
+  function loadJSON(key, fallback){
+    try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+    catch(e){ return fallback; }
+  }
+  function saveJSON(key, val){
+    try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){}
+  }
+  function hashString(str){
+    let h = 5381;
+    for(let i=0;i<str.length;i++){ h = ((h*33) ^ str.charCodeAt(i)) >>> 0; }
+    return "h" + h.toString(36);
+  }
+  function stripHtml(html){
+    if(!html) return "";
+    try{
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      return (doc.body.textContent || "").replace(/\s+/g," ").trim();
+    }catch(e){ return ""; }
+  }
+  function getFirstTagText(node, tags){
+    for(const t of tags){
+      const els = node.getElementsByTagName(t);
+      if(els.length){
+        const txt = (els[0].textContent || "").trim();
+        if(txt) return txt;
+      }
+    }
+    return "";
+  }
+  function getLink(node){
+    const linkEls = node.getElementsByTagName("link");
+    for(const el of linkEls){
+      const txt = (el.textContent || "").trim();
+      if(txt.indexOf("http") === 0) return txt;
+    }
+    for(const el of linkEls){
+      const href = el.getAttribute && el.getAttribute("href");
+      if(href) return href;
+    }
+    const loc = getFirstTagText(node, ["loc"]);
+    if(loc) return loc;
+    const guid = getFirstTagText(node, ["guid"]);
+    if(guid && guid.indexOf("http") === 0) return guid;
+    return "";
+  }
+  function formatRelative(date){
+    const diff = Date.now() - date.getTime();
+    const min = Math.floor(diff/60000);
+    if(min < 1) return "net nu";
+    if(min < 60) return min + " min geleden";
+    const uur = Math.floor(min/60);
+    if(uur < 24) return uur + " uur geleden";
+    return date.toLocaleString("nl-NL", {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"});
+  }
+  function dayLabel(date){
+    const now = new Date();
+    const d0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const d1 = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diffDays = Math.round((d0 - d1) / 86400000);
+    if(diffDays === 0) return "Vandaag";
+    if(diffDays === 1) return "Gisteren";
+    return date.toLocaleDateString("nl-NL", {weekday:"long", day:"numeric", month:"long"});
+  }
+
+  /* ============================================================
+     FETCH ENGINE (multi-proxy fallback)
+  ============================================================ */
+  function fetchWithTimeout(url, ms){
+    const ctrl = new AbortController();
+    const timer = setTimeout(()=>ctrl.abort(), ms);
+    return fetch(url, {signal: ctrl.signal})
+      .then(res=>{
+        clearTimeout(timer);
+        if(!res.ok) throw new Error("HTTP " + res.status);
+        return res.text();
+      })
+      .catch(err=>{ clearTimeout(timer); throw err; });
+  }
+  async function fetchFeedRaw(feedUrl){
+    let lastErr = null;
+    for(const build of PROXIES){
+      try{
+        const text = await fetchWithTimeout(build(feedUrl), 9000);
+        if(text && text.length > 40) return text;
+      }catch(e){ lastErr = e; }
+    }
+    throw lastErr || new Error("Alle proxies faalden");
+  }
+
+  /* ============================================================
+     PARSE ENGINE
+  ============================================================ */
+  function parseFeed(xmlText, feedConfig){
+    const doc = new DOMParser().parseFromString(xmlText, "application/xml");
+    if(doc.getElementsByTagName("parsererror").length) throw new Error("XML parse fout");
+    let nodes = Array.from(doc.getElementsByTagName("item"));
+    if(nodes.length === 0) nodes = Array.from(doc.getElementsByTagName("entry"));
+    if(nodes.length === 0) nodes = Array.from(doc.getElementsByTagName("url"));
+    return nodes.map(n => nodeToItem(n, feedConfig)).filter(Boolean);
+  }
+  function nodeToItem(node, feedConfig){
+    let title = getFirstTagText(node, ["title", "news:title"]);
+    if(!title) return null;
+
+    const link = getLink(node) || "#";
+    const dateStr = getFirstTagText(node, ["pubDate","updated","published","news:publication_date"]);
+    let date = dateStr ? new Date(dateStr) : new Date();
+    if(isNaN(date.getTime())) date = new Date();
+
+    const rawDesc = getFirstTagText(node, ["description","summary","content"]);
+    let sourceHint = null;
+
+    if(feedConfig.splitSource){
+      const m = title.match(/^(.*)\s-\s([^-]+)$/);
+      if(m){ title = m[1].trim(); sourceHint = m[2].trim(); }
+    }
+    if(feedConfig.filterAjax){
+      const hay = (title + " " + rawDesc).toLowerCase();
+      if(hay.indexOf("ajax") === -1) return null;
+    }
+
+    return {
+      id: hashString(link !== "#" ? link : title),
+      title, link, date,
+      snippet: stripHtml(rawDesc),
+      sourceHint,
+      feedId: feedConfig.id,
+      feedName: feedConfig.name,
+      color: feedConfig.color
+    };
+  }
+
+  async function loadFeed(feedConfig){
+    try{
+      const xml = await fetchFeedRaw(feedConfig.url);
+      const items = parseFeed(xml, feedConfig);
+      return { feedConfig, items, status:"ok" };
+    }catch(e){
+      return { feedConfig, items:[], status:"error", error: (e && e.message) || String(e) };
+    }
+  }
+
+  /* ============================================================
+     RENDER: bronnen-chips
+  ============================================================ */
+  function renderChips(statusMap){
+    const wrap = document.getElementById("chips");
+    wrap.innerHTML = "";
+    SOURCES.forEach(s=>{
+      const enabled = sourceEnabled[s.id] !== false;
+      const st = (statusMap && statusMap[s.id]) || "pending";
+      const chip = document.createElement("div");
+      chip.className = "chip" + (enabled ? "" : " disabled");
+      chip.innerHTML =
+        '<span class="dot" style="background:' + s.color + '"></span>' +
+        '<span>' + s.name + '</span>' +
+        '<span class="status ' + st + '"></span>';
+      chip.addEventListener("click", ()=>{
+        sourceEnabled[s.id] = !enabled;
+        saveJSON(LS_SOURCES, sourceEnabled);
+        renderChips(statusMap);
+        renderList();
+      });
+      wrap.appendChild(chip);
+    });
+  }
+
+  /* ============================================================
+     RENDER: feed-lijst
+  ============================================================ */
+  function renderSkeleton(){
+    const list = document.getElementById("feedList");
+    list.innerHTML = "";
+    for(let i=0;i<5;i++){
+      const sk = document.createElement("div");
+      sk.className = "skeleton";
+      list.appendChild(sk);
+    }
+  }
+
+  function renderList(){
+    const list = document.getElementById("feedList");
+    const emptyState = document.getElementById("emptyState");
+    list.innerHTML = "";
+
+    const term = searchTerm.trim().toLowerCase();
+    const filtered = allItems.filter(it=>{
+      if(sourceEnabled[it.feedId] === false) return false;
+      if(term && it.title.toLowerCase().indexOf(term) === -1) return false;
+      return true;
+    });
+
+    if(filtered.length === 0){
+      emptyState.style.display = "block";
+      emptyState.textContent = allItems.length === 0
+        ? "Nog geen berichten geladen — of alle bronnen zijn momenteel onbereikbaar. Probeer 'Vernieuw nu'."
+        : "Geen berichten gevonden voor deze zoekterm/filters.";
+      return;
+    }
+    emptyState.style.display = "none";
+
+    let currentDay = null;
+    const newIdsThisRender = new Set();
+
+    filtered.forEach(item=>{
+      const label = dayLabel(item.date);
+      if(label !== currentDay){
+        currentDay = label;
+        const h = document.createElement("div");
+        h.className = "day-heading";
+        h.textContent = label;
+        list.appendChild(h);
+      }
+
+      const firstSeen = seenMap[item.id];
+      const isNew = firstSeen && (Date.now() - firstSeen) < NEW_WINDOW_MS;
+      const isFreshlyEntered = !prevRenderedIds.has(item.id);
+      newIdsThisRender.add(item.id);
+
+      const card = document.createElement("article");
+      card.className = "card" + (isNew ? " is-new" : "") + (isFreshlyEntered ? " enter" : "");
+
+      const top = document.createElement("div");
+      top.className = "card-top";
+      top.innerHTML =
+        '<span class="source-badge" style="color:' + item.color + '">' + item.feedName + '</span>' +
+        (isNew ? '<span class="new-badge">NIEUW</span>' : "") +
+        '<span class="time">' + formatRelative(item.date) + '</span>';
+      card.appendChild(top);
+
+      const h3 = document.createElement("h3");
+      const a = document.createElement("a");
+      a.href = item.link; a.target = "_blank"; a.rel = "noopener noreferrer";
+      a.textContent = item.title;
+      h3.appendChild(a);
+      if(item.sourceHint){
+        const span = document.createElement("span");
+        span.className = "source-hint";
+        span.textContent = "  — via " + item.sourceHint;
+        h3.appendChild(span);
+      }
+      card.appendChild(h3);
+
+      if(item.snippet){
+        const btn = document.createElement("button");
+        btn.className = "snippet-toggle";
+        btn.textContent = "Toon eerste zin ▾";
+        const snip = document.createElement("div");
+        snip.className = "snippet";
+        snip.textContent = item.snippet.slice(0, 400);
+        btn.addEventListener("click", ()=>{
+          const open = snip.classList.toggle("open");
+          btn.textContent = open ? "Verberg ▴" : "Toon eerste zin ▾";
+        });
+        card.appendChild(btn);
+        card.appendChild(snip);
+      }
+
+      const footerRow = document.createElement("div");
+      footerRow.className = "card-footer";
+      const readLink = document.createElement("a");
+      readLink.href = item.link; readLink.target = "_blank"; readLink.rel = "noopener noreferrer";
+      readLink.className = "read-link";
+      readLink.textContent = "Lees artikel →";
+      footerRow.appendChild(readLink);
+      card.appendChild(footerRow);
+
+      list.appendChild(card);
+    });
+
+    prevRenderedIds = newIdsThisRender;
+  }
+
+  /* ============================================================
+     NIEUW-DETECTIE, TAB-TITEL & FAVICON
+  ============================================================ */
+  function processSeenStatus(items){
+    const alreadyInitialized = localStorage.getItem(LS_INIT) === "true";
+    let addedUnread = 0;
+
+    items.forEach(item=>{
+      if(!(item.id in seenMap)){
+        seenMap[item.id] = Date.now();
+        if(alreadyInitialized) addedUnread++;
+      }
+    });
+
+    if(!alreadyInitialized){
+      localStorage.setItem(LS_INIT, "true");
+    } else if(addedUnread > 0){
+      unreadCount += addedUnread;
+      localStorage.setItem(LS_UNREAD, String(unreadCount));
+    }
+
+    // opruimen: oude entries uit seenMap verwijderen zodat localStorage niet blijft groeien
+    const cutoff = Date.now() - 1000*60*60*24*7; // 7 dagen
+    Object.keys(seenMap).forEach(id=>{
+      if(seenMap[id] < cutoff) delete seenMap[id];
+    });
+    saveJSON(LS_SEEN, seenMap);
+
+    updateTitleAndFavicon();
+  }
+
+  function updateTitleAndFavicon(){
+    document.title = unreadCount > 0
+      ? "(" + unreadCount + ") 🚨 Ajax Transfer Radar"
+      : "⚡ Ajax Transfer Radar";
+    updateFavicon(unreadCount);
+  }
+
+  function updateFavicon(count){
+    try{
+      const canvas = document.createElement("canvas");
+      canvas.width = 64; canvas.height = 64;
+      const ctx = canvas.getContext("2d");
+      ctx.font = "54px sans-serif";
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "center";
+      ctx.fillText("⚡", 30, 36);
+      if(count > 0){
+        ctx.beginPath();
+        ctx.arc(48, 16, 15, 0, Math.PI*2);
+        ctx.fillStyle = "#d0021b";
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 20px sans-serif";
+        ctx.fillText(count > 9 ? "9+" : String(count), 48, 17);
+      }
+      document.getElementById("favicon").href = canvas.toDataURL("image/png");
+    }catch(e){ /* favicon is een bonus, mag falen */ }
+  }
+
+  function clearUnreadOnFocus(){
+    if(unreadCount > 0){
+      unreadCount = 0;
+      localStorage.setItem(LS_UNREAD, "0");
+      updateTitleAndFavicon();
+    }
+  }
+  document.addEventListener("visibilitychange", ()=>{
+    if(document.visibilityState === "visible") clearUnreadOnFocus();
+  });
+  window.addEventListener("focus", clearUnreadOnFocus);
+
+  /* ============================================================
+     REFRESH-CYCLUS
+  ============================================================ */
+  async function refreshAll(){
+    if(isRefreshing) return;
+    isRefreshing = true;
+    setLoadingUI(true);
+
+    const results = await Promise.allSettled(SOURCES.map(loadFeed));
+    const statusMap = {};
+    const merged = new Map();
+
+    results.forEach(r=>{
+      const val = r.value || { feedConfig:{id:"?"}, items:[], status:"error" };
+      statusMap[val.feedConfig.id] = val.status;
+      val.items.forEach(it=> merged.set(it.id, it));
+    });
+
+    allItems = Array.from(merged.values()).sort((a,b)=> b.date - a.date);
+    processSeenStatus(allItems);
+    renderChips(statusMap);
+    renderList();
+
+    document.getElementById("lastUpdate").textContent =
+      new Date().toLocaleTimeString("nl-NL", {hour:"2-digit", minute:"2-digit", second:"2-digit"});
+
+    setLoadingUI(false);
+    isRefreshing = false;
+    secondsLeft = REFRESH_SECONDS;
+  }
+
+  function setLoadingUI(loading){
+    const btn = document.getElementById("refreshBtn");
+    btn.classList.toggle("loading", loading);
+    btn.disabled = loading;
+    if(loading && allItems.length === 0) renderSkeleton();
+  }
+
+  /* ============================================================
+     TIMERS
+  ============================================================ */
+  function tick(){
+    secondsLeft--;
+    if(secondsLeft <= 0){
+      refreshAll();
+    } else {
+      const m = Math.floor(secondsLeft/60);
+      const s = secondsLeft % 60;
+      document.getElementById("countdown").textContent =
+        m + ":" + (s < 10 ? "0"+s : s);
+    }
+  }
+
+  /* ============================================================
+     INIT
+  ============================================================ */
+  document.getElementById("refreshBtn").addEventListener("click", ()=>{
+    secondsLeft = REFRESH_SECONDS;
+    refreshAll();
+  });
+  document.getElementById("search").addEventListener("input", (e)=>{
+    searchTerm = e.target.value;
+    renderList();
+  });
+
+  renderChips(null);
+  renderSkeleton();
+  refreshAll();
+  setInterval(tick, 1000);
+
+})();
+</script>
+</body>
+</html>
+
+							<script>
+                            	
+							</script>
+                        </body>
+                        </html>
+                    
