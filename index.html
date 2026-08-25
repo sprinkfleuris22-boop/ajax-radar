@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>❌❌❌ Ajax Transfer Radar</title>
+  <title>❌❌❌ Ajax Transfer Radar (v1.5)</title>
   <style>
     :root {
       --primary: #d0021b;
@@ -37,6 +37,11 @@
       border-bottom: 2px solid #e0e0e0;
     }
 
+    .header-title {
+      display: flex;
+      flex-direction: column;
+    }
+
     h1 {
       font-size: 1.5rem;
       margin: 0;
@@ -44,6 +49,13 @@
       display: flex;
       align-items: center;
       gap: 8px;
+    }
+
+    .version-tag {
+      font-size: 0.75rem;
+      color: var(--subtext);
+      margin-top: 2px;
+      font-weight: normal;
     }
 
     .btn-refresh {
@@ -132,7 +144,10 @@
 
   <div class="container">
     <header>
-      <h1>❌❌❌ Ajax Transfer Radar</h1>
+      <div class="header-title">
+        <h1>❌❌❌ Ajax Transfer Radar</h1>
+        <span class="version-tag">Versie 1.5 • Live Feed Engine</span>
+      </div>
       <button class="btn-refresh" onclick="loadFeeds(true)">Verversen</button>
     </header>
 
@@ -142,6 +157,9 @@
   </div>
 
   <script>
+    const APP_VERSION = "1.5";
+    console.log(`Ajax Transfer Radar gestart op versie ${APP_VERSION}`);
+
     const FEEDS = [
       { name: "Ajax Showtime", url: "https://www.ajaxshowtime.com/sitemap/news.xml", translate: false },
       { name: "Ajax1.nl", url: "https://www.ajax1.nl/feed/news.rss", translate: false },
@@ -206,20 +224,21 @@
       }
     }
 
-    // Haal originele XML op via allorigins.win
+    // Gebruik corsproxy.io voor directe en snelle XML doorvoer
     async function fetchRawXml(feedUrl) {
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(feedUrl)}&_t=${Date.now()}`;
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(feedUrl)}`;
       const res = await fetch(proxyUrl);
-      const data = await res.json();
+      if (!res.ok) throw new Error(`HTTP fout ${res.status}`);
+      const text = await res.text();
       
       const parser = new DOMParser();
-      return parser.parseFromString(data.contents, "text/xml");
+      return parser.parseFromString(text, "text/xml");
     }
 
     async function loadFeeds(isManual = false) {
       const feedContainer = document.getElementById('feed');
       if (isManual) {
-        feedContainer.innerHTML = '<div class="loading">❌❌❌ Live geruchten ophalen en vertalen...</div>';
+        feedContainer.innerHTML = '<div class="loading">❌❌❌ Live geruchten ophalen en vertalen (v1.5)...</div>';
       }
       
       let allItems = [];
@@ -229,7 +248,6 @@
       for (const source of FEEDS) {
         try {
           const xmlDoc = await fetchRawXml(source.url);
-          // Ondersteun zowel RSS <item> als Atom/Sitemap <entry> / <url>
           let items = Array.from(xmlDoc.querySelectorAll("item, entry, url"));
           
           const limit = source.filterAjax ? 10 : 5;
@@ -237,12 +255,11 @@
           for (let item of items.slice(0, limit)) {
             let title = item.querySelector("title")?.textContent?.trim() || "";
             let link = item.querySelector("link")?.textContent || item.querySelector("link")?.getAttribute("href") || "";
-            let pubDateRaw = item.querySelector("pubDate, updated, lastmod, date")?.textContent || "";
+            let pubDateRaw = item.querySelector("pubDate, updated, lastmod, date, dc\\:date")?.textContent || "";
             let description = item.querySelector("description, summary, content")?.textContent || "";
 
             if (!title && !link) continue;
 
-            // Filter algemene bronnen op trefwoord 'Ajax'
             if (source.filterAjax && !title.toLowerCase().includes('ajax')) {
               continue;
             }
@@ -257,7 +274,6 @@
               if (snippet) snippet = await translateText(snippet);
             }
 
-            // Converteer het originele datumformaat naar een correct Date object
             let parsedDate = pubDateRaw ? new Date(pubDateRaw) : new Date();
 
             const titleKey = title.toLowerCase().substring(0, 30);
@@ -277,7 +293,7 @@
             }
           }
         } catch (err) {
-          console.error("Fout bij ophalen van bron:", source.name);
+          console.error(`Fout bij ophalen van bron (${source.name}):`, err);
         }
       }
 
@@ -302,7 +318,6 @@
         const card = document.createElement('div');
         card.className = `card ${item.isNew ? 'is-new' : ''}`;
         
-        // Converteer naar exacte Nederlandse browsertijd
         const timeString = isNaN(item.date) ? '' : item.date.toLocaleTimeString('nl-NL', {hour: '2-digit', minute:'2-digit'});
         const dateString = isNaN(item.date) ? '' : item.date.toLocaleDateString('nl-NL', {day: '2-digit', month:'2-digit'});
         const snippetId = `snippet-${index}`;
