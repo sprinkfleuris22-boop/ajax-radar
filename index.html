@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>❌❌❌ Ajax Transfer Radar (v1.6)</title>
+  <title>❌❌❌ Ajax Transfer Radar (v1.7)</title>
   <style>
     :root {
       --primary: #d0021b;
@@ -146,7 +146,7 @@
     <header>
       <div class="header-title">
         <h1>❌❌❌ Ajax Transfer Radar</h1>
-        <span class="version-tag">Versie 1.6 • Hybrid Engine</span>
+        <span class="version-tag">Versie 1.7 • Direct XML Proxy</span>
       </div>
       <button class="btn-refresh" onclick="loadFeeds(true)">Verversen</button>
     </header>
@@ -221,45 +221,20 @@
       }
     }
 
-    // Robuuste fetch-functie die rss2json gebruikt en fallback naar allorigins als het misgaat
-    async function fetchFeedItems(source) {
-      try {
-        const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(source.url)}`;
-        const res = await fetch(apiUrl);
-        const data = await res.json();
-        
-        if (data.status === 'ok' && data.items) {
-          return data.items.map(item => ({
-            title: item.title,
-            link: item.link,
-            pubDate: item.pubDate,
-            description: item.description || item.content || ""
-          }));
-        }
-      } catch (e) {
-        console.warn(`Primary API mislukt voor ${source.name}, probeer fallback...`);
-      }
-
-      // Fallback via AllOrigins
-      const fallbackUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(source.url)}`;
-      const res = await fetch(fallbackUrl);
-      const data = await res.json();
+    // Directe proxy zonder limieten of zware caching
+    async function fetchXml(feedUrl) {
+      const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(feedUrl)}`;
+      const res = await fetch(proxyUrl);
+      const text = await res.text();
+      
       const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(data.contents, "text/xml");
-      const xmlItems = Array.from(xmlDoc.querySelectorAll("item, entry"));
-
-      return xmlItems.map(item => ({
-        title: item.querySelector("title")?.textContent || "",
-        link: item.querySelector("link")?.textContent || item.querySelector("link")?.getAttribute("href") || "",
-        pubDate: item.querySelector("pubDate, updated, date")?.textContent || "",
-        description: item.querySelector("description, summary, content")?.textContent || ""
-      }));
+      return parser.parseFromString(text, "text/xml");
     }
 
     async function loadFeeds(isManual = false) {
       const feedContainer = document.getElementById('feed');
       if (isManual) {
-        feedContainer.innerHTML = '<div class="loading">❌❌❌ Live geruchten ophalen en vertalen (v1.6)...</div>';
+        feedContainer.innerHTML = '<div class="loading">❌❌❌ Live geruchten ophalen en vertalen (v1.7)...</div>';
       }
       
       let allItems = [];
@@ -268,14 +243,15 @@
 
       for (const source of FEEDS) {
         try {
-          const items = await fetchFeedItems(source);
+          const xmlDoc = await fetchXml(source.url);
+          const rawItems = Array.from(xmlDoc.querySelectorAll("item, entry, url"));
           const limit = source.filterAjax ? 10 : 5;
           
-          for (let item of items.slice(0, limit)) {
-            let title = (item.title || "").trim();
-            let link = item.link || "";
-            let pubDateRaw = item.pubDate || "";
-            let description = item.description || "";
+          for (let item of rawItems.slice(0, limit)) {
+            let title = item.querySelector("title")?.textContent?.trim() || "";
+            let link = item.querySelector("link")?.textContent || item.querySelector("link")?.getAttribute("href") || "";
+            let pubDateRaw = item.querySelector("pubDate, updated, date, lastmod")?.textContent || "";
+            let description = item.querySelector("description, summary, content")?.textContent || "";
 
             if (!title || !link) continue;
 
@@ -293,7 +269,6 @@
               if (snippet) snippet = await translateText(snippet);
             }
 
-            // Datum parsen en corrigeren
             let parsedDate = pubDateRaw ? new Date(pubDateRaw) : new Date();
             if (isNaN(parsedDate.getTime())) {
               parsedDate = new Date();
