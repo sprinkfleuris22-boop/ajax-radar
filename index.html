@@ -1,19 +1,4 @@
-
-                        <!DOCTYPE html>
-                        <html lang="en">
-                        <head>
-                            <meta charset="UTF-8">
-                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-							<style>
-								body {
-									background-color: white; /* Ensure the iframe has a white background */
-								}
-
-								
-							</style>
-                        </head>
-                        <body>
-                            <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="nl">
 <head>
 <meta charset="UTF-8" />
@@ -44,7 +29,6 @@
   }
   .wrap{max-width:760px;margin:0 auto;padding:24px 16px 80px;}
 
-  /* ---------- HEADER ---------- */
   header.topbar{text-align:center;padding:20px 0 10px;position:relative;}
   header.topbar h1{
     font-size:28px;margin:0;font-weight:800;letter-spacing:-.5px;
@@ -65,7 +49,6 @@
   }
   .subtitle{color:var(--muted);font-size:13px;margin-top:4px;}
 
-  /* ---------- CONTROLS ---------- */
   .controls{
     display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;
     margin:22px 0 14px;
@@ -91,7 +74,6 @@
   }
   .meta-row b{color:var(--text);}
 
-  /* ---------- SOURCES PANEL ---------- */
   details.sources-panel{
     background:var(--card);border:1px solid var(--border);border-radius:12px;
     padding:10px 14px;margin-bottom:20px;font-size:13px;
@@ -110,13 +92,11 @@
   .status.error{background:#e74c3c;}
   .status.pending{background:#f1c40f;animation:pulseDot 1.5s infinite;}
 
-  /* ---------- DAY GROUPS ---------- */
   .day-heading{
     color:var(--muted);font-size:13px;font-weight:700;text-transform:uppercase;
     letter-spacing:.5px;margin:26px 0 10px;padding-left:2px;
   }
 
-  /* ---------- CARDS ---------- */
   .card{
     background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
     padding:16px 18px;margin-bottom:12px;position:relative;overflow:hidden;
@@ -159,16 +139,18 @@
   .read-link{color:var(--muted);font-size:12.5px;text-decoration:none;}
   .read-link:hover{color:var(--accent);}
 
-  /* ---------- SKELETON ---------- */
   .skeleton{
     height:92px;border-radius:var(--radius);margin-bottom:12px;
     background:linear-gradient(90deg, var(--card) 25%, var(--card-hover) 37%, var(--card) 63%);
     background-size:400px 100%;animation:shimmer 1.4s infinite linear;
   }
 
-  /* ---------- EMPTY / ERROR ---------- */
   .empty-state{
     text-align:center;color:var(--muted);padding:60px 20px;font-size:14px;
+  }
+  .debug-banner{
+    background:#2a1416;border:1px solid #5a2328;color:#ffb4b4;border-radius:12px;
+    padding:12px 14px;font-size:12.5px;margin-bottom:16px;display:none;white-space:pre-wrap;
   }
 
   footer{text-align:center;color:var(--muted);font-size:12px;margin-top:40px;}
@@ -189,7 +171,7 @@
 <div class="wrap">
 
   <header class="topbar">
-    <h1>⚡ Ajax Transfer Radar <span class="version-tag">v1.0</span></h1>
+    <h1>⚡ Ajax Transfer Radar <span class="version-tag">v1.1</span></h1>
     <div class="live-pulse"><span class="live-dot"></span> LIVE — automatisch elke 5 minuten</div>
     <div class="subtitle">Alle Ajax-transfergeruchten en nieuws op één rij</div>
   </header>
@@ -210,7 +192,12 @@
     <span>Volgende update over <b id="countdown">–</b></span>
   </div>
 
-  
+  <div id="debugBanner" class="debug-banner"></div>
+
+  <details class="sources-panel">
+    <summary>⚙️ Bronnen (klik om aan/uit te zetten)</summary>
+    <div id="chips" class="chips"></div>
+  </details>
 
   <main id="feedList"></main>
   <div id="emptyState" class="empty-state" style="display:none;"></div>
@@ -239,14 +226,16 @@
     { id:"reddit", name:"Reddit r/AjaxAmsterdam", url:"https://www.reddit.com/r/AjaxAmsterdam/new/.rss", filterAjax:false, color:"#ff6348" }
   ];
 
+  // Volgorde: meest betrouwbare/gratis-zonder-limiet eerst. corsproxy.io kan 503'en, dus later in de rij.
   const PROXIES = [
-    u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
-    u => "https://corsproxy.io/?url=" + encodeURIComponent(u),
-    u => "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(u)
+    { name:"allorigins", build: u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u) },
+    { name:"codetabs",   build: u => "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(u) },
+    { name:"thingproxy", build: u => "https://thingproxy.freeboard.io/fetch/" + u },
+    { name:"corsproxy",  build: u => "https://corsproxy.io/?url=" + encodeURIComponent(u) }
   ];
 
   const REFRESH_SECONDS = 300; // 5 minuten
-  const NEW_WINDOW_MS = 45 * 60 * 1000; // hoe lang een item als "NIEUW" blijft tonen
+  const NEW_WINDOW_MS = 45 * 60 * 1000;
   const LS_SEEN = "atr_seen_v1";
   const LS_INIT = "atr_init_v1";
   const LS_UNREAD = "atr_unread_v1";
@@ -255,11 +244,12 @@
   /* ============================================================
      STATE
   ============================================================ */
-  let allItems = [];              // laatst opgehaalde items, alle bronnen
-  let prevRenderedIds = new Set(); // welke ids in vorige render zaten (voor enter-animatie)
+  let allItems = [];
+  let prevRenderedIds = new Set();
   let secondsLeft = REFRESH_SECONDS;
   let isRefreshing = false;
   let searchTerm = "";
+  const debugLines = [];
 
   const seenMap = loadJSON(LS_SEEN, {});
   const sourceEnabled = loadJSON(LS_SOURCES, Object.fromEntries(SOURCES.map(s=>[s.id, true])));
@@ -268,6 +258,7 @@
   /* ============================================================
      HELPERS
   ============================================================ */
+  function $(id){ return document.getElementById(id); }
   function loadJSON(key, fallback){
     try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
     catch(e){ return fallback; }
@@ -331,9 +322,22 @@
     if(diffDays === 1) return "Gisteren";
     return date.toLocaleDateString("nl-NL", {weekday:"long", day:"numeric", month:"long"});
   }
+  function logDebug(line){
+    debugLines.push("[" + new Date().toLocaleTimeString("nl-NL") + "] " + line);
+    if(debugLines.length > 30) debugLines.shift();
+    const banner = $("debugBanner");
+    if(banner){
+      const errors = debugLines.filter(l=>l.indexOf("FOUT") !== -1 || l.indexOf("ERROR") !== -1);
+      if(errors.length > 0){
+        banner.style.display = "block";
+        banner.textContent = "Debug-log (klap open via console voor details):\n" + errors.slice(-6).join("\n");
+      }
+    }
+    console.log("[AjaxRadar] " + line);
+  }
 
   /* ============================================================
-     FETCH ENGINE (multi-proxy fallback)
+     FETCH ENGINE (multi-proxy fallback, met harde timeout)
   ============================================================ */
   function fetchWithTimeout(url, ms){
     const ctrl = new AbortController();
@@ -346,13 +350,17 @@
       })
       .catch(err=>{ clearTimeout(timer); throw err; });
   }
-  async function fetchFeedRaw(feedUrl){
+  async function fetchFeedRaw(feedUrl, feedName){
     let lastErr = null;
-    for(const build of PROXIES){
+    for(const proxy of PROXIES){
       try{
-        const text = await fetchWithTimeout(build(feedUrl), 9000);
+        const text = await fetchWithTimeout(proxy.build(feedUrl), 6000);
         if(text && text.length > 40) return text;
-      }catch(e){ lastErr = e; }
+        throw new Error("leeg antwoord");
+      }catch(e){
+        lastErr = e;
+        logDebug(feedName + ": proxy '" + proxy.name + "' faalde (" + (e && e.message) + ")");
+      }
     }
     throw lastErr || new Error("Alle proxies faalden");
   }
@@ -402,19 +410,22 @@
 
   async function loadFeed(feedConfig){
     try{
-      const xml = await fetchFeedRaw(feedConfig.url);
+      const xml = await fetchFeedRaw(feedConfig.url, feedConfig.name);
       const items = parseFeed(xml, feedConfig);
+      logDebug(feedConfig.name + ": OK, " + items.length + " items");
       return { feedConfig, items, status:"ok" };
     }catch(e){
+      logDebug("FOUT " + feedConfig.name + ": " + ((e && e.message) || String(e)));
       return { feedConfig, items:[], status:"error", error: (e && e.message) || String(e) };
     }
   }
 
   /* ============================================================
-     RENDER: bronnen-chips
+     RENDER: bronnen-chips  (defensief: crasht nooit meer)
   ============================================================ */
   function renderChips(statusMap){
-    const wrap = document.getElementById("chips");
+    const wrap = $("chips");
+    if(!wrap){ logDebug("FOUT: #chips element niet gevonden in DOM, chips overgeslagen"); return; }
     wrap.innerHTML = "";
     SOURCES.forEach(s=>{
       const enabled = sourceEnabled[s.id] !== false;
@@ -436,10 +447,11 @@
   }
 
   /* ============================================================
-     RENDER: feed-lijst
+     RENDER: feed-lijst  (defensief)
   ============================================================ */
   function renderSkeleton(){
-    const list = document.getElementById("feedList");
+    const list = $("feedList");
+    if(!list) return;
     list.innerHTML = "";
     for(let i=0;i<5;i++){
       const sk = document.createElement("div");
@@ -449,8 +461,9 @@
   }
 
   function renderList(){
-    const list = document.getElementById("feedList");
-    const emptyState = document.getElementById("emptyState");
+    const list = $("feedList");
+    const emptyState = $("emptyState");
+    if(!list || !emptyState){ logDebug("FOUT: feedList/emptyState element niet gevonden"); return; }
     list.innerHTML = "";
 
     const term = searchTerm.trim().toLowerCase();
@@ -463,7 +476,7 @@
     if(filtered.length === 0){
       emptyState.style.display = "block";
       emptyState.textContent = allItems.length === 0
-        ? "Nog geen berichten geladen — of alle bronnen zijn momenteel onbereikbaar. Probeer 'Vernieuw nu'."
+        ? "Nog geen berichten geladen — of alle bronnen zijn momenteel onbereikbaar. Probeer 'Vernieuw nu', of klik het bronnenpaneel open om te zien welke bron faalt."
         : "Geen berichten gevonden voor deze zoekterm/filters.";
       return;
     }
@@ -562,8 +575,7 @@
       localStorage.setItem(LS_UNREAD, String(unreadCount));
     }
 
-    // opruimen: oude entries uit seenMap verwijderen zodat localStorage niet blijft groeien
-    const cutoff = Date.now() - 1000*60*60*24*7; // 7 dagen
+    const cutoff = Date.now() - 1000*60*60*24*7;
     Object.keys(seenMap).forEach(id=>{
       if(seenMap[id] < cutoff) delete seenMap[id];
     });
@@ -597,7 +609,8 @@
         ctx.font = "bold 20px sans-serif";
         ctx.fillText(count > 9 ? "9+" : String(count), 48, 17);
       }
-      document.getElementById("favicon").href = canvas.toDataURL("image/png");
+      const fav = $("favicon");
+      if(fav) fav.href = canvas.toDataURL("image/png");
     }catch(e){ /* favicon is een bonus, mag falen */ }
   }
 
@@ -614,40 +627,55 @@
   window.addEventListener("focus", clearUnreadOnFocus);
 
   /* ============================================================
-     REFRESH-CYCLUS
+     REFRESH-CYCLUS  (nu volledig crash-proof)
   ============================================================ */
   async function refreshAll(){
     if(isRefreshing) return;
     isRefreshing = true;
     setLoadingUI(true);
+    logDebug("Refresh gestart…");
 
-    const results = await Promise.allSettled(SOURCES.map(loadFeed));
-    const statusMap = {};
-    const merged = new Map();
+    try{
+      const results = await Promise.allSettled(SOURCES.map(loadFeed));
+      const statusMap = {};
+      const merged = new Map();
 
-    results.forEach(r=>{
-      const val = r.value || { feedConfig:{id:"?"}, items:[], status:"error" };
-      statusMap[val.feedConfig.id] = val.status;
-      val.items.forEach(it=> merged.set(it.id, it));
-    });
+      results.forEach(r=>{
+        const val = r.status === "fulfilled" ? r.value : { feedConfig:{id:"onbekend"}, items:[], status:"error" };
+        statusMap[val.feedConfig.id] = val.status;
+        val.items.forEach(it=> merged.set(it.id, it));
+      });
 
-    allItems = Array.from(merged.values()).sort((a,b)=> b.date - a.date);
-    processSeenStatus(allItems);
-    renderChips(statusMap);
-    renderList();
+      allItems = Array.from(merged.values()).sort((a,b)=> b.date - a.date);
+      processSeenStatus(allItems);
+      renderChips(statusMap);
+      renderList();
 
-    document.getElementById("lastUpdate").textContent =
-      new Date().toLocaleTimeString("nl-NL", {hour:"2-digit", minute:"2-digit", second:"2-digit"});
-
-    setLoadingUI(false);
-    isRefreshing = false;
-    secondsLeft = REFRESH_SECONDS;
+      const lastUpdateEl = $("lastUpdate");
+      if(lastUpdateEl){
+        lastUpdateEl.textContent = new Date().toLocaleTimeString("nl-NL", {hour:"2-digit", minute:"2-digit", second:"2-digit"});
+      }
+      logDebug("Refresh klaar: " + allItems.length + " items totaal.");
+    }catch(e){
+      logDebug("FOUT tijdens refreshAll: " + ((e && e.message) || String(e)));
+      const emptyState = $("emptyState");
+      if(emptyState){
+        emptyState.style.display = "block";
+        emptyState.textContent = "Er ging iets mis bij het laden. Zie debug-log hierboven, of probeer 'Vernieuw nu'.";
+      }
+    }finally{
+      setLoadingUI(false);
+      isRefreshing = false;
+      secondsLeft = REFRESH_SECONDS;
+    }
   }
 
   function setLoadingUI(loading){
-    const btn = document.getElementById("refreshBtn");
-    btn.classList.toggle("loading", loading);
-    btn.disabled = loading;
+    const btn = $("refreshBtn");
+    if(btn){
+      btn.classList.toggle("loading", loading);
+      btn.disabled = loading;
+    }
     if(loading && allItems.length === 0) renderSkeleton();
   }
 
@@ -661,36 +689,52 @@
     } else {
       const m = Math.floor(secondsLeft/60);
       const s = secondsLeft % 60;
-      document.getElementById("countdown").textContent =
-        m + ":" + (s < 10 ? "0"+s : s);
+      const el = $("countdown");
+      if(el) el.textContent = m + ":" + (s < 10 ? "0"+s : s);
     }
   }
 
   /* ============================================================
+     GLOBALE VANGNETTEN (voorkomt ooit nog een stille crash)
+  ============================================================ */
+  window.addEventListener("error", (e)=> logDebug("FOUT window.onerror: " + e.message));
+  window.addEventListener("unhandledrejection", (e)=> logDebug("FOUT unhandledrejection: " + (e.reason && e.reason.message || e.reason)));
+
+  /* ============================================================
      INIT
   ============================================================ */
-  document.getElementById("refreshBtn").addEventListener("click", ()=>{
-    secondsLeft = REFRESH_SECONDS;
-    refreshAll();
-  });
-  document.getElementById("search").addEventListener("input", (e)=>{
-    searchTerm = e.target.value;
-    renderList();
-  });
+  document.addEventListener("DOMContentLoaded", init);
+  if(document.readyState === "complete" || document.readyState === "interactive"){
+    init();
+  }
 
-  renderChips(null);
-  renderSkeleton();
-  refreshAll();
-  setInterval(tick, 1000);
+  let initialized = false;
+  function init(){
+    if(initialized) return;
+    initialized = true;
+
+    const refreshBtn = $("refreshBtn");
+    if(refreshBtn){
+      refreshBtn.addEventListener("click", ()=>{
+        secondsLeft = REFRESH_SECONDS;
+        refreshAll();
+      });
+    }
+    const searchEl = $("search");
+    if(searchEl){
+      searchEl.addEventListener("input", (e)=>{
+        searchTerm = e.target.value;
+        renderList();
+      });
+    }
+
+    renderChips(null);
+    renderSkeleton();
+    refreshAll();
+    setInterval(tick, 1000);
+  }
 
 })();
 </script>
 </body>
 </html>
-
-							<script>
-                            	
-							</script>
-                        </body>
-                        </html>
-                    
