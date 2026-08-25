@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ajax Transfer Radar</title>
+  <style>
+    :root {
+      --primary: #d0021b;
+      --bg: #f4f4f7;
+      --card-bg: #ffffff;
+      --text: #1a1a1a;
+      --subtext: #666666;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 15px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 650px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e0e0e0;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin: 0;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-refresh {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .btn-refresh:hover {
+      opacity: 0.9;
+    }
+
+    #feed {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      border-left: 4px solid var(--primary);
+    }
+
+    .card a {
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 1.05rem;
+      line-height: 1.4;
+      display: block;
+    }
+
+    .card a:hover {
+      color: var(--primary);
+    }
+
+    .meta {
+      font-size: 0.8rem;
+      color: var(--subtext);
+      margin-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .tag {
+      background: #eee;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 0.75rem;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--subtext);
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>❌❌❌ Ajax Transfer Radar</h1>
+      <button class="btn-refresh" onclick="loadFeeds()">Verversen</button>
+    </header>
+
+    <div id="feed">
+      <div class="loading">Nieuwste geruchten ophalen en vertalen...</div>
+    </div>
+  </div>
+
+  <script>
+    // Uitgebreide bronnenlijst (Binnen- en buitenland)
+    const FEEDS = [
+      { name: "Ajax Showtime", url: "https://www.ajaxshowtime.com/sitemap/news.xml", translate: false },
+      { name: "VoetbalPrimeur", url: "https://www.voetbalprimeur.nl/feed/news.xml?tag=ajax", translate: false },
+      { name: "Google News (NL)", url: "https://news.google.com/rss/search?q=Ajax+transfer+OR+geruchten&hl=nl&gl=NL&ceid=NL:nl", translate: false },
+      { name: "Google News (EN)", url: "https://news.google.com/rss/search?q=Ajax+Amsterdam+transfer&hl=en-US&gl=US&ceid=US:en", translate: true },
+      { name: "Google News (IT)", url: "https://news.google.com/rss/search?q=Ajax+calciomercato&hl=it&gl=IT&ceid=IT:it", translate: true },
+      { name: "Google News (ES)", url: "https://news.google.com/rss/search?q=Ajax+fichajes&hl=es&gl=ES&ceid=ES:es", translate: true },
+      { name: "Reddit Ajax", url: "https://www.reddit.com/r/AjaxAmsterdam/new/.rss", translate: true }
+    ];
+
+    // Gratis Google Translate functie via open endpoint
+    async function translateText(text) {
+      try {
+        const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=nl&dt=t&q=${encodeURIComponent(text)}`);
+        const data = await res.json();
+        return data[0][0][0];
+      } catch (e) {
+        return text; // Fallback op originele titel bij netwerkfout
+      }
+    }
+
+    async function loadFeeds() {
+      const feedContainer = document.getElementById('feed');
+      feedContainer.innerHTML = '<div class="loading">Nieuwste geruchten ophalen en vertalen...</div>';
+      
+      let allItems = [];
+      let seenTitles = new Set(); // Om dubbele titels te voorkomen
+
+      for (const source of FEEDS) {
+        try {
+          // Gebruik rss2json om CORS-beperkingen en XML parsing op te lossen
+          const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(source.url)}`);
+          const data = await res.json();
+          
+          if (data.items) {
+            for (let item of data.items.slice(0, 5)) { // Pak max 5 nieuwste items per bron
+              let title = item.title.trim();
+
+              // Vertalen indien nodig
+              if (source.translate) {
+                title = await translateText(title);
+              }
+
+              // Simpele ontdubbeling op basis van de eerste 25 tekens
+              const titleKey = title.toLowerCase().substring(0, 25);
+              if (!seenTitles.has(titleKey)) {
+                seenTitles.add(titleKey);
+                allItems.push({
+                  title: title,
+                  link: item.link,
+                  date: new Date(item.pubDate),
+                  source: source.name
+                });
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Fout bij ophalen van bron:", source.name);
+        }
+      }
+
+      // Sorteer op datum (nieuwste bovenaan)
+      allItems.sort((a, b) => b.date - a.date);
+
+      feedContainer.innerHTML = '';
+      
+      if (allItems.length === 0) {
+        feedContainer.innerHTML = '<div class="loading">Geen berichten kunnen laden. Probeer later opnieuw.</div>';
+        return;
+      }
+
+      // Render items naar het scherm
+      allItems.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        
+        const timeString = isNaN(item.date) ? '' : item.date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const dateString = isNaN(item.date) ? '' : item.date.toLocaleDateString([], {day: '2-digit', month:'2-digit'});
+
+        card.innerHTML = `
+          <a href="${item.link}" target="_blank" rel="noopener">${item.title}</a>
+          <div class="meta">
+            <span class="tag">${item.source}</span>
+            <span>${dateString} ${timeString}</span>
+          </div>
+        `;
+        feedContainer.appendChild(card);
+      });
+    }
+
+    // Start direct bij het openen van de pagina
+    loadFeeds();
+  </script>
+</body>
+</html>
